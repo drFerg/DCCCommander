@@ -30,13 +30,13 @@
  */
 
 /// The currently queued packet to be put on the rails. Default is a reset packet.
-extern uint8_t current_packet[6];
+extern uint8_t pkt[6];
 /// How many data uint8_ts in the queued packet?
-extern volatile uint8_t current_packet_size;
+extern volatile uint8_t pkt_size;
 /// How many uint8_ts remain to be put on the rails?
-extern volatile uint8_t current_uint8_t_counter;
+extern volatile uint8_t byte_counter;
 /// How many bits remain in the current data uint8_t/preamble before changing states?
-extern volatile uint8_t current_bit_counter; //init to 14 1's for the preamble
+extern volatile uint8_t bit_counter; //init to 14 1's for the preamble
 /// A fixed-content packet to send when idle
 //uint8_t DCC_Idle_Packet[3] = {255,0,255};
 /// A fixed-content packet to send to reset all decoders on layout
@@ -409,12 +409,12 @@ bool DCCPacketScheduler::unsetBasicAccessory(uint16_t address, uint8_t function)
 }
 
 //to be called periodically within loop()
-void DCCPacketScheduler::update(void) //checks queues, puts whatever's pending on the rails via global current_packet. easy-peasy
+void DCCPacketScheduler::update(void) //checks queues, puts whatever's pending on the rails via global pkt. easy-peasy
 {
   DCC_waveform_generation_hasshin();
 
   //TODO ADD POM QUEUE?
-  if(!current_uint8_t_counter) //if the ISR needs a packet:
+  if(!byte_counter) //if the ISR needs a packet:
   {
     DCCPacket p;
     //Take from e_stop queue first, then high priority queue.
@@ -468,9 +468,9 @@ void DCCPacketScheduler::update(void) //checks queues, puts whatever's pending o
       repeatPacket(&p);
     }
     last_packet_address = p.getAddress(); //remember the address to compare with the next packet
-    current_packet_size = p.getBitstream(current_packet); //feed to the starving ISR.
+    pkt_size = p.getBitstream(pkt); //feed to the starving ISR.
     //output the packet, for checking:
-    //if(current_packet[0] != 0xFF) //if not idle
+    //if(pkt[0] != 0xFF) //if not idle
     //{
     //  for(uint8_t i = 0; i < current_packet_size; ++i)
     //  {
@@ -479,6 +479,6 @@ void DCCPacketScheduler::update(void) //checks queues, puts whatever's pending o
     //  }
     //  Serial.println("");
     //}
-    current_uint8_t_counter = current_packet_size;
+    byte_counter = pkt_size;
   }
 }
