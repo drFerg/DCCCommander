@@ -102,9 +102,11 @@ void setup_DCC_waveform_generator() {
   DDRB |= (1 << DDB1) | (1 << DDB2);
 #endif
 
-  // Configure timer1 in CTC mode, for waveform generation, set to toggle OC1A, OC1B, at /8 prescalar, interupt at CTC
-  TCCR1A = (0 << COM1A1) | (1 << COM1A0) | (0 << COM1B1) | (1 << COM1B0) | (0 << WGM11) | (0 << WGM10);
-  TCCR1B = (0 << ICNC1)  | (0 << ICES1)  | (0 << WGM13)  | (1 << WGM12)  | (0 << CS12)  | (1 << CS11) | (0 << CS10);
+  /* Configure timer1 in CTC mode, for waveform generation, set to toggle OC1A, OC1B, at /8 prescalar, interupt at CTC */
+  TCCR1A |= (1 << COM1A0)  /* Toggle OC1A on compare match */
+          | (1 << COM1B0); /* Toggle OC1B on compare match */
+  TCCR1B |= (1 << WGM12)   /* Enable CTC mode */
+          | (1 << CS11);   /* Divide the clock by 8 */
 
   // start by outputting a '1'
   send_bit(ONE_BIT);
