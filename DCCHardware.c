@@ -82,11 +82,11 @@ volatile uint8_t bit_counter = PREAMBLE_BIT_CNT; /* init for preamble */
    then sets it to toggle OC1A, OC1B, at /8 prescalar, 
    then run the ISR at each interval 
  */
-void setup_DCC_waveform_generator() {
+void dcc_init() {
   init_rail_pins();   /* Set the Timer1 pins OC1A and OC1B pins to output mode */
-  TCCR1A |= (1 << COM1A0)  /* Toggle OC1A on compare match */
+  TCCR1A = (1 << COM1A0)  /* Toggle OC1A on compare match */
           | (1 << COM1B0); /* Toggle OC1B on compare match */
-  TCCR1B |= (1 << WGM12)   /* Enable CTC mode */
+  TCCR1B = (1 << WGM12)   /* Enable CTC mode */
           | (1 << CS11);   /* Divide the clock by 8 */
   TCCR1C |= (1 << FOC1B); /* Force compare match, a toggle OC1B so that it will complement pin OC1A */
   TCNT1 = 0; /* Init timer to start at 0 */
@@ -94,26 +94,17 @@ void setup_DCC_waveform_generator() {
   /* Start outputting 1 bit */
   send_bit(ONE_BIT);
 }
-/* Legacy */
-void DCC_waveform_generation_hasshin() {
-  TIMSK1 |= (1 << OCIE1A);
-}
 
 /* This is the Interrupt Service Routine (ISR) for Timer1 compare match. */
+/* In CTC mode, timer TCINT1 automatically resets to 0 when it matches OCR1A.
+ * To switch between 1 waveform and 0 waveform, we assign a (timer) value to OCR1A and OCR1B using send_bit(time).
+ * Anything we set for OCR1A takes effect IMMEDIATELY, so we are working within the cycle we are setting.
+ * A full bit requires two time periods, one outputting a 1 and the second a 0.
+ */
 ISR(TIMER1_COMPA_vect) {
-  /* In CTC mode, timer TCINT1 automatically resets to 0 when it matches OCR1A.
-   * To switch between 1 waveform and 0 waveform, we assign a (timer) value to OCR1A and OCR1B using send_bit(time).
-   * Anything we set for OCR1A takes effect IMMEDIATELY, so we are working within the cycle we are setting.
-   * A full bit requires two time periods, one outputting a 0 and the second a 1.
-   */
-  
-  if(PINB & (1 << PINBN)) { /* if the pin is high, we need to use a different zero counter to enable stretched-zero DC operation */
-    if(OCR1A == ZERO_BIT) { //if the pin is low and outputting a zero, we need to be using zero_low_count
-      send_bit(ZERO_BIT);
-    }
-  }
-  else //the pin is low. New cycle is begining. Here's where the real work goes.
-  {
+  /* First check if previous bit fully sent, i.e., PINB goes HIGH -> LOW */
+  if(PINB & (1 << PINBN)) return; /* transmit 2nd half of bit (LOW) */
+  else { /* Last bit complete, send a new bit */ 
     switch(dcc_state) {
       case DCC_IDLE: /* Check if a new packet is ready, then send preamble, else send 1 bit. */
         if(byte_counter == 0) { /*if no new packet */
@@ -150,4 +141,18 @@ ISR(TIMER1_COMPA_vect) {
         break;
     }
   }
+}
+
+int dcc_bytes_left() {
+  int bytes_left;
+  cli();
+  bytes_left = byte_counter;
+  sei();
+  return bytes_left;
+}
+
+void dcc_send_bytes(uint8_t *bytes, uint8_t len) {
+  cli();
+  memcpy(pkt, bytes, len);
+  sei();
 }

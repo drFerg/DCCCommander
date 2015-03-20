@@ -7,9 +7,9 @@ extern "C"
 {
 #endif
 
-void setup_DCC_waveform_generator(void);
-void DCC_waveform_generation_hasshin(void);
-
+void dcc_init(void);
+int dcc_bytes_left();
+void dcc_send_bytes(uint8_t *bytes, uint8_t len);
 #ifdef __cplusplus
 }
 #endif
