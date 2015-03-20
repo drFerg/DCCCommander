@@ -63,7 +63,7 @@ void DCCPacketScheduler::setDefaultSpeedSteps(uint8_t new_speed_steps)
     
 void DCCPacketScheduler::setup(void) //for any post-constructor initialization
 {
-  setup_DCC_waveform_generator();
+  dcc_init();
   
   //Following RP 9.2.4, begin by putting 20 reset packets and 10 idle packets on the rails.
   //use the e_stop_queue to do this, to ensure these packets go out first!
@@ -411,8 +411,6 @@ bool DCCPacketScheduler::unsetBasicAccessory(uint16_t address, uint8_t function)
 //to be called periodically within loop()
 void DCCPacketScheduler::update(void) //checks queues, puts whatever's pending on the rails via global pkt. easy-peasy
 {
-  DCC_waveform_generation_hasshin();
-
   //TODO ADD POM QUEUE?
   if(!byte_counter) //if the ISR needs a packet:
   {
