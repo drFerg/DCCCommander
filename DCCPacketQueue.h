@@ -44,7 +44,7 @@ class DCCPacketQueue
     
     virtual inline bool notRepeat(unsigned int address)
     {
-      return (address != queue[read_pos].getAddress());
+      return (address != queue[read_pos].addr);
     }
     
     //void printQueue(void);

@@ -1,16 +1,7 @@
-#include "Arduino.h"
+#include <Arduino.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include "DCCHardware.h"
-
-/** Given the structure of a DCC packet, the ISR can be in one of 5 states.
-    DCC_IDLE: there is nothing to put on the rails. In this case, the only legal thing
-               to do is to put a '1' on the rails.  The ISR should almost never be in this state.
-    DCC_PREAMBLE: A packet has been made available, and so we should broadcast the preamble: 14 '1's in a row.
-    DCC_BYTE_START: Each byte of data is preceded by a 0.
-    DCC_BYTE_SEND: Sending the current byte.
-    DCC_POSTAMBLE: After the final byte is sent, send a 0.
-*/
 
 #if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__) || defined(__AVR_AT90CAN128__) || defined(__AVR_AT90CAN64__) || defined(__AVR_AT90CAN32__)
   #define PINBN PINB6 /* On Arduino MEGA, OC1A is digital pin 11 or Port B/Pin 5 */
@@ -60,7 +51,16 @@ typedef enum {
     9900us * 2MHz = 1+OCR1A
     OCR1A = 19799
 */
-typedef enum {
+
+/** Given the structure of a DCC packet, the ISR can be in one of 5 states.
+    DCC_IDLE: there is nothing to put on the rails. In this case, the only legal thing
+               to do is to put a '1' on the rails.  The ISR should almost never be in this state.
+    DCC_PREAMBLE: A packet has been made available, and so we should broadcast the preamble: 14 '1's in a row.
+    DCC_BYTE_START: Each byte of data is preceded by a 0.
+    DCC_BYTE_SEND: Sending the current byte.
+    DCC_POSTAMBLE: After the final byte is sent, send a 0.
+*/
+  typedef enum {
   DCC_IDLE,
   DCC_PREAMBLE,
   DCC_BYTE_START,
@@ -85,9 +85,9 @@ volatile uint8_t bit_counter = PREAMBLE_BIT_CNT; /* init for preamble */
 void dcc_init() {
   init_rail_pins();   /* Set the Timer1 pins OC1A and OC1B pins to output mode */
   TCCR1A = (1 << COM1A0)  /* Toggle OC1A on compare match */
-          | (1 << COM1B0); /* Toggle OC1B on compare match */
+         | (1 << COM1B0); /* Toggle OC1B on compare match */
   TCCR1B = (1 << WGM12)   /* Enable CTC mode */
-          | (1 << CS11);   /* Divide the clock by 8 */
+         | (1 << CS11);   /* Divide the clock by 8 */
   TCCR1C |= (1 << FOC1B); /* Force compare match, a toggle OC1B so that it will complement pin OC1A */
   TCNT1 = 0; /* Init timer to start at 0 */
   TIMSK1 |= (1 << OCIE1A); /* enable the compare match interrupt */
@@ -122,10 +122,8 @@ ISR(TIMER1_COMPA_vect) {
         bit_counter = BYTE_BIT_CNT;
         break;
       case DCC_BYTE_SEND: /* Sending a byte; current bit is tracked with bit_counter, and current byte with byte_counter */
-        if(current_bit() & 1) /* Is current bit a 1? */
-          send_bit(ONE_BIT);
-        else /* It's a 0 */
-          send_bit(ZERO_BIT);
+        if(current_bit() & 1) send_bit(ONE_BIT); /* Check and send either 1 or 0 */
+        else send_bit(ZERO_BIT);
 
         if(--bit_counter == 0) { /* If out of bits, send the next byte */
           if(--byte_counter == 0) /* If out of bytes, packet is sent, move to DCC_POSTAMBLE */
@@ -154,5 +152,6 @@ int dcc_bytes_left() {
 void dcc_send_bytes(uint8_t *bytes, uint8_t len) {
   cli();
   memcpy(pkt, bytes, len);
+  pkt_size = byte_counter = len;
   sei();
 }

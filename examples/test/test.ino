@@ -21,6 +21,7 @@ byte F0 = 0;
 
 void setup() {
   Serial.begin(115200);
+  Serial.print("HELLO\n"); Serial.flush();
   dps.setup();
   pinMode(8, OUTPUT);
   digitalWrite(8, HIGH);
@@ -31,17 +32,17 @@ void setup() {
 
 void loop() {
   //handle reading button, controls F0
-  byte button_state = digitalRead(4); //high == not pushed; low == pushed
-  if(button_state && (button_state != prev_state))
-  {
-    //toggle!
-    F0 ^= 1;
-    Serial.println(F0,BIN);
-    speed_byte = (F0 ? 30 : 0);
-  }
+  // byte button_state = digitalRead(4); //high == not pushed; low == pushed
+  // if(button_state && (button_state != prev_state))
+  // {
+  //   //toggle!
+  //   F0 ^= 1;
+  //   Serial.println(F0,BIN);
+  //   speed_byte = (F0 ? 30 : 0);
+  // }
 
-  prev_state = button_state;
-  dps.setSpeed128(3, DCC_SHORT_ADDRESS, speed_byte);
+  //prev_state = button_state;
+  dps.setSpeed128(3, DCC_ADDR_SHORT, 20);
   dps.update();
   
   ++count;

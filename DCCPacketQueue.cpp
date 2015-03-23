@@ -7,27 +7,31 @@ DCCPacketQueue::DCCPacketQueue(void) : read_pos(0), write_pos(0), size(10), writ
 
 void DCCPacketQueue::setup(byte length)
 {
+  //Serial.print("setup pkt\n"); Serial.flush();
+
   size = length;
-  queue = (DCCPacket *)malloc(sizeof(DCCPacket) *size);
-  for(int i = 0; i<size; ++i)
-  {
-    queue[i] = DCCPacket();
-  }
+  queue = (DCCPacket *) malloc(sizeof(DCCPacket) * size);
+  if (queue == NULL) Serial.print("DCC Packet Q: Allocation error\n"); Serial.flush();
+  // for(int i = 0; i<size; ++i)
+  // {
+  //   queue[i] = DCCPacket();
+  // }
 }
 
 bool DCCPacketQueue::insertPacket(DCCPacket *packet)
 {
+
 //  Serial.print("Enqueueing a packet of kind: ");
 //  Serial.println(packet->getKind(), DEC);
    //First: Overwrite any packet with the same address and kind; if no such packet THEN hitup the packet at write_pos
   byte i = read_pos;
   while(i != (read_pos+written)%(size) )//(size+1) ) //size+1 so we can check the last slot, too…
   {
-    if( (queue[i].getAddress() == packet->getAddress()) && (queue[i].getKind() == packet->getKind()))
+    if( (queue[i].addr == packet->addr) && (queue[i].type == packet->type))
     {
 //      Serial.print("Overwriting existing packet at index ");
 //      Serial.println(i, DEC);
-      memcpy(&queue[i],packet,sizeof(DCCPacket));
+      memcpy(&queue[i], packet, sizeof(DCCPacket));
       //do not increment written or modify write_pos
       return true;
     }
@@ -38,7 +42,7 @@ bool DCCPacketQueue::insertPacket(DCCPacket *packet)
   if(!isFull())
   {
     //else, just write it at the end of the queue.
-    memcpy(&queue[write_pos],packet,sizeof(DCCPacket));
+    memcpy(&queue[write_pos], packet, sizeof(DCCPacket));
 //    Serial.print("Write packet to index ");
 //    Serial.println(write_pos, DEC);
     write_pos = (write_pos + 1) % size;
@@ -67,13 +71,15 @@ bool DCCPacketQueue::insertPacket(DCCPacket *packet)
 
 bool DCCPacketQueue::readPacket(DCCPacket *packet)
 {
+
   if(!isEmpty())
   {
-//    Serial.print("Reading a packet from index: ");
-//    Serial.println(read_pos, DEC);
-    memcpy(packet,&queue[read_pos],sizeof(DCCPacket));
+    Serial.print("Reading a packet from index: ");
+    Serial.println(read_pos, DEC);
+    memcpy(packet, &queue[read_pos], sizeof(DCCPacket));
     read_pos = (read_pos + 1) % size;
     --written;
+    Serial.println(written);
     return true;
   }
   return false;
@@ -84,10 +90,10 @@ bool DCCPacketQueue::forget(uint16_t address, uint8_t address_kind)
   bool found = false;
   for(int i = 0; i < size; ++i)
   {
-    if( (queue[i].getAddress() == address) && (queue[i].getAddressKind() == address_kind) )
+    if( (queue[i].addr == address) && (queue[i].addr_type == address_kind))
     {
       found = true;
-      queue[i] = DCCPacket(); //revert to default value
+      queue[i].type = PKT_NULL;
     }
   }
   --written;
@@ -101,7 +107,7 @@ void DCCPacketQueue::clear(void)
   written = 0;
   for(int i = 0; i<size; ++i)
   {
-    queue[i] = DCCPacket();
+    queue[i].type = PKT_NULL;
   }
 }
 
@@ -114,7 +120,8 @@ DCCRepeatQueue::DCCRepeatQueue(void) : DCCPacketQueue()
 
 bool DCCRepeatQueue::insertPacket(DCCPacket *packet)
 {
-  if(packet->getRepeat())
+
+  if(packet->repeat)
   {
     return(DCCPacketQueue::insertPacket(packet));
   }
@@ -129,9 +136,9 @@ bool DCCRepeatQueue::readPacket(DCCPacket *packet)
     read_pos = (read_pos + 1) % size;
     --written;
 
-    if(packet->getRepeat()) //the packet needs to be sent out at least one more time
+    if(packet->repeat) //the packet needs to be sent out at least one more time
     {     
-      packet->setRepeat(packet->getRepeat()-1);
+      packet->repeat = packet->repeat - 1;
       insertPacket(packet);
     }
     return true;
@@ -151,8 +158,8 @@ bool DCCEmergencyQueue::readPacket(DCCPacket *packet)
 {
   if(!isEmpty()) //anything in the queue?
   {
-    queue[read_pos].setRepeat(queue[read_pos].getRepeat()-1); //decrement the current packet's repeat count
-    if(queue[read_pos].getRepeat()) //if the topmost packet needs repeating
+    queue[read_pos].repeat = queue[read_pos].repeat - 1; //decrement the current packet's repeat count
+    if(queue[read_pos].repeat) //if the topmost packet needs repeating
     {
       memcpy(packet,&queue[read_pos],sizeof(DCCPacket));
       return true;

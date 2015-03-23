@@ -1,7 +1,6 @@
 #ifndef __DCCHARDWARE_H__
 #define __DCCHARDWARE_H__
 
-
 #ifdef __cplusplus
 extern "C"
 {
@@ -10,6 +9,7 @@ extern "C"
 void dcc_init(void);
 int dcc_bytes_left();
 void dcc_send_bytes(uint8_t *bytes, uint8_t len);
+
 #ifdef __cplusplus
 }
 #endif
