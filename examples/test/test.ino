@@ -30,6 +30,9 @@ void setup() {
   digitalWrite(4, HIGH); //activate built-in pull-up resistor  
 }
 
+int i = 0;
+int go = 1;
+
 void loop() {
   //handle reading button, controls F0
   // byte button_state = digitalRead(4); //high == not pushed; low == pushed
@@ -42,8 +45,17 @@ void loop() {
   // }
 
   //prev_state = button_state;
-  dps.setSpeed128(3, DCC_ADDR_SHORT, 20);
-  dps.update();
+  if (go) {
+    if (i < 127) i++;
+    else go = 0;
+  }
+  else {
+    if (i > 0) i--;
+    else go = 1;
+  }
+  dps.setSpeed128(3, DCC_ADDR_SHORT, 60);
+  //dps.update();
+
   
   ++count;
 }
