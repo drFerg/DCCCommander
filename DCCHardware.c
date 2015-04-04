@@ -137,8 +137,8 @@ ISR(TIMER1_COMPA_vect) {
       case DCC_IDLE: /* Check if a new packet is ready, then send preamble, else send 1 bit. */
         if(byte_counter == 0) { /*if no new packet */
           if (getNextPacket() == 0) { /* See if a new packet is waiting to be grabbed */
-          send_bit(ONE_BIT); /* Send ones if we don't know what else to do. */
-          break;
+            send_bit(ONE_BIT); /* Send ones if we don't know what else to do. */
+            break;
           } /* else we found a new packet so start preamble */
         }
         dcc_state = DCC_PREAMBLE; //and fall through to DCC_PREAMBLE

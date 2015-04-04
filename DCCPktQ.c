@@ -30,7 +30,6 @@ void unlink(DCCPktElem *e) {
 }
 
 void remove(DCCPktQ *q, DCCPktElem *e) {
-  cli();
   if (q->read == e && e != e->next) q->read = e->next;
   else q->read = NULL;
   unlink(e);
@@ -42,7 +41,6 @@ void remove(DCCPktQ *q, DCCPktElem *e) {
     q->freeCount++;
   }
   else free(e);
-  sei();
 }
 /**********************/
 
@@ -83,41 +81,56 @@ int dccpktq_insert(DCCPktQ *q, DCCPacket *pkt) {
 }
 
 int dccpktq_hasNext(DCCPktQ *q) {
-  return q->read != NULL;
+  int exists = 0;
+  cli();
+  exists = (q->read != NULL); 
+  sei();
+  return exists;
 }
   
 int dccpktq_next(DCCPktQ *q, DCCPacket **pkt) {
   cli();
+  if (q->read == NULL) {
+    sei();
+    return 0;
+  }
   *pkt = &(q->read->pkt);
   (*pkt)->repeat--;
   q->lastRead = q->read;
   q->read = q->read->next;
-  if (q->lastRead->pkt.repeat == 0) remove(q, q->lastRead); 
+  if (q->lastRead->pkt.repeat == 0) 
+    remove(q, q->lastRead); /* Remove last packet read if finished repeating */
   sei();
   return (*pkt)->size;
 }
 
 int dccpktq_remove(DCCPktQ *q, uint16_t addr) {
   DCCPktElem *e;
-  int n;
+  int n, succ = 0;
+  cli();
   for (n = 0, e = q->read; n < q->count && e->pkt.addr != addr; e = e->next, n++)
     ;
   if (e->pkt.addr == addr) {
     remove(q, e);
-    return 1;
+    succ = 1;
   }
-  return 0;
+  sei();
+  return succ;
 }
 
 void dccpktq_clear(DCCPktQ *q) {
   DCCPktElem *e;
+  cli();
   while(e = q->read) remove(q, e);
+  sei();
 }
 
 void dccpktq_destroy(DCCPktQ *q) {
   DCCPktElem *e;
+  cli();
   if (q == NULL) return;
   while(e = q->read) remove(q, e);
   while(e = q->freeList) free(e);
   free(q);
+  sei();
 }
