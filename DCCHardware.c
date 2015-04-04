@@ -10,7 +10,7 @@
   #define PINBN PINB1 /*On Arduino UNO, OC1A is digital pin 9 or Port B/Pin 1 */
   #define init_rail_pins() DDRB |= (1 << DDB1) | (1 << DDB2); /* and OC1B Port B/Pin 2 */
 #endif
-
+#define PKT_SIZE 6
 #define PREAMBLE_BIT_CNT 14
 #define BYTE_BIT_CNT 8
 #define current_bit() ((pkt[pkt_size - byte_counter]) >> (bit_counter - 1))
@@ -69,10 +69,12 @@ typedef enum {
 } DCC_state; /* Different states for DCC output state machine */
 
 DCC_state dcc_state = DCC_IDLE; /* Init state machine */
-uint8_t pkt[6] = {0, 0, 0, 0, 0, 0}; /* Current packet being transmitted */
+uint8_t pkt[PKT_SIZE] = {0, 0, 0, 0, 0, 0}; /* Current packet being transmitted */
 volatile uint8_t pkt_size = 0;
 volatile uint8_t byte_counter = 0; /* Bytes left to transmit in packet */
 volatile uint8_t bit_counter = PREAMBLE_BIT_CNT; /* init for preamble */
+
+int (*nextPacket)(uint8_t **);
 /// A fixed-content packet to send when idle
 //uint8_t DCC_Idle_Packet[3] = {255,0,255};
 /// A fixed-content packet to send to reset all decoders on layout
@@ -82,7 +84,8 @@ volatile uint8_t bit_counter = PREAMBLE_BIT_CNT; /* init for preamble */
    then sets it to toggle OC1A, OC1B, at /8 prescalar, 
    then run the ISR at each interval 
  */
-void dcc_init() {
+void dcc_init(int (*grabNextPacketfunc)(uint8_t **)) {
+  nextPacket = grabNextPacketfunc;
   init_rail_pins();   /* Set the Timer1 pins OC1A and OC1B pins to output mode */
   TCCR1A = (1 << COM1A0)  /* Toggle OC1A on compare match */
          | (1 << COM1B0); /* Toggle OC1B on compare match */
@@ -101,6 +104,31 @@ void dcc_init() {
  * Anything we set for OCR1A takes effect IMMEDIATELY, so we are working within the cycle we are setting.
  * A full bit requires two time periods, one outputting a 1 and the second a 0.
  */
+
+int dcc_bytes_left() {
+  int bytes_left;
+  cli();
+  bytes_left = byte_counter;
+  sei();
+  return bytes_left;
+}
+
+int getNextPacket() {
+  uint8_t *bytes;
+  int size = nextPacket(&bytes);
+  if (size > PKT_SIZE) return 0;
+  memcpy(pkt, bytes, size);
+  pkt_size = byte_counter = size;
+  return size;
+}
+
+void dcc_send_bytes(uint8_t *bytes, uint8_t len) {
+  cli();
+  memcpy(pkt, bytes, len);
+  pkt_size = byte_counter = len;
+  sei();
+}
+
 ISR(TIMER1_COMPA_vect) {
   /* First check if previous bit fully sent, i.e., PINB goes HIGH -> LOW */
   if(PINB & (1 << PINBN)) return; /* transmit 2nd half of bit (LOW) */
@@ -108,8 +136,10 @@ ISR(TIMER1_COMPA_vect) {
     switch(dcc_state) {
       case DCC_IDLE: /* Check if a new packet is ready, then send preamble, else send 1 bit. */
         if(byte_counter == 0) { /*if no new packet */
+          if (getNextPacket() == 0) { /* See if a new packet is waiting to be grabbed */
           send_bit(ONE_BIT); /* Send ones if we don't know what else to do. */
           break;
+          } /* else we found a new packet so start preamble */
         }
         dcc_state = DCC_PREAMBLE; //and fall through to DCC_PREAMBLE
       case DCC_PREAMBLE: /* Sending preamble bits(14) before switching to DCC_BYTE_START */
@@ -139,19 +169,4 @@ ISR(TIMER1_COMPA_vect) {
         break;
     }
   }
-}
-
-int dcc_bytes_left() {
-  int bytes_left;
-  cli();
-  bytes_left = byte_counter;
-  sei();
-  return bytes_left;
-}
-
-void dcc_send_bytes(uint8_t *bytes, uint8_t len) {
-  cli();
-  memcpy(pkt, bytes, len);
-  pkt_size = byte_counter = len;
-  sei();
 }

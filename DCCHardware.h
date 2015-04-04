@@ -5,8 +5,7 @@
 extern "C"
 {
 #endif
-
-void dcc_init(void);
+void dcc_init(int (*grabNextPacketfunc)(uint8_t **));
 int dcc_bytes_left();
 void dcc_send_bytes(uint8_t *bytes, uint8_t len);
 
