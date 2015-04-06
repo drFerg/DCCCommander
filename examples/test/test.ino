@@ -9,7 +9,7 @@
 
 #include <DCCPacket.h>
 #include <DCCCommandStation.h>
-
+#include <DCCHardware.h>
 
 DCCCommandStation dcc;
 unsigned int analog_value;
@@ -23,10 +23,13 @@ void setup() {
   Serial.print("HELLO\n"); Serial.flush();
   dcc.setup();
   pinMode(8, OUTPUT);
+  pinMode(13, OUTPUT);
   digitalWrite(8, HIGH);
+  digitalWrite(13, HIGH);
   //set up button on pin 4
   pinMode(4, INPUT);
   digitalWrite(4, HIGH); //activate built-in pull-up resistor  
+  dcc.setSpeed128(3, DCC_ADDR_SHORT, 10);
 }
 
 int i = 0;
@@ -52,7 +55,6 @@ void loop() {
     if (i > 0) i--;
     else go = 1;
   }
-  dcc.setSpeed128(3, DCC_ADDR_SHORT, 60);
-  
   ++count;
+  getNextPacket();
 }

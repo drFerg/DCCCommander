@@ -21,18 +21,13 @@ void DCCCommandStation::setup(void) {
 
   /* Init DCC hardware and scheduler */
   Serial.print(dccshed_init());
-  Serial.print("HIII\n");Serial.flush();
   /* reset packet: address 0x00, data 0x00, XOR 0x00; S 9.2 line 75 */
   dccpkt_init(&p, DCC_ADDR_SHORT, DCC_BROADCAST_ADDR, PKT_RESET, data, 1, 20);
-  dccshed_send(DCC_HIPRI, &p);
-  Serial.print("HIII\n");Serial.flush();
+  dccshed_send(DCC_EPRI, &p);
 
-   
   //idle packet: address 0xFF, data 0x00, XOR 0xFF; S 9.2 line 90
   dccpkt_init(&q, DCC_ADDR_SHORT, 0xFF, PKT_IDLE, data, 1, 10);
-  Serial.print("HIII\n");Serial.flush();
-  dccshed_send(DCC_HIPRI, &p);
-  
+  dccshed_send(DCC_EPRI, &q);
   Serial.println("SENT RESETS");Serial.flush();
 }
 
@@ -126,7 +121,7 @@ bool DCCCommandStation::setSpeed128(uint16_t address, DCCAddrType addr_type, int
   DCCPacket p;
   uint8_t dir = 1;
   uint16_t abs_speed = new_speed;
-  uint8_t speed_data_uint8_ts[] = {0x3F,0x00};
+  uint8_t speed_data_uint8_ts[] = {0x3F, 0x00};
   if(new_speed<0)
   {
     dir = 0;
@@ -141,6 +136,12 @@ bool DCCCommandStation::setSpeed128(uint16_t address, DCCAddrType addr_type, int
 
   speed_data_uint8_ts[1] |= (0x80 * dir); //flip bit 7 to indicate direction;
   dccpkt_init(&p, addr_type, address, PKT_SPEED, speed_data_uint8_ts, 2, SPEED_REPEAT);
+  printf("sP>> a: %x t: %x ds: %x s: %x\n", p.addr, p.type, p.data_size, p.size);
+  int j;
+  for (j = 0; j < p.size; j++) {
+    printf("%x ", p.bytes[j]);
+  }
+  printf("\n");
   //speed packets get refreshed indefinitely, and so the repeat doesn't need to be set.
   //speed packets go to the high proirity queue
   return dccshed_send(DCC_HIPRI, &p);

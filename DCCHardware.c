@@ -115,10 +115,18 @@ int dcc_bytes_left() {
 
 int getNextPacket() {
   uint8_t *bytes;
+  if (byte_counter > 0) return 0;
   int size = pullNextPacket(&bytes);
+
   if (size > PKT_SIZE) return 0;
   memcpy(pkt, bytes, size);
   pkt_size = byte_counter = size;
+  printf("%d>>", size);
+  int j;
+  for (j = 0; j < size; j++) {
+    printf("%x ", (pkt)[j]);
+  }
+  printf("<<\n");
   return size;
 }
 
@@ -136,10 +144,10 @@ ISR(TIMER1_COMPA_vect) {
     switch(dcc_state) {
       case DCC_IDLE: /* Check if a new packet is ready, then send preamble, else send 1 bit. */
         if(byte_counter == 0) { /*if no new packet */
-          if (getNextPacket() == 0) { /* See if a new packet is waiting to be grabbed */
+          //if (getNextPacket() == 0) { /* See if a new packet is waiting to be grabbed */
             send_bit(ONE_BIT); /* Send ones if we don't know what else to do. */
             break;
-          } /* else we found a new packet so start preamble */
+          //} /* else we found a new packet so start preamble */
         }
         dcc_state = DCC_PREAMBLE; //and fall through to DCC_PREAMBLE
       case DCC_PREAMBLE: /* Sending preamble bits(14) before switching to DCC_BYTE_START */

@@ -1,5 +1,6 @@
 #include "DCCPktQ.h"
 #include <stdlib.h>
+#include <stdio.h>
 #define FREECOUNT 10
 
 typedef struct dccpktelem {
@@ -65,33 +66,41 @@ int dccpktq_insert(DCCPktQ *q, DCCPacket *pkt) {
   } 
   else {
     e = (DCCPktElem *) malloc(sizeof(DCCPktElem));
+    if (e == NULL) return 0;
   }
   memcpy(&(e->pkt), pkt, sizeof(DCCPacket));
   q->count++;
   if (q->read == NULL) {
     q->read = e;
-    e->next = e->prev = NULL;
+    e->next = e->prev = e;
   }
   else {
     link(q->read->prev, e, q->read);
     q->read = e;
   }
   sei();
+  printf("P>> a: %x t: %x ds: %x s: %x\n", e->pkt.addr, e->pkt.type, e->pkt.data_size, e->pkt.size);
+  int j;
+  for (j = 0; j < e->pkt.size; j++) {
+    printf("%x ", e->pkt.bytes[j]);
+  }
+  printf("\n");
+  printf("q->read: %p\n", q->read);
   return 1;
 }
 
 int dccpktq_hasNext(DCCPktQ *q) {
   int exists = 0;
-  cli();
+  //cli();
   exists = (q->read != NULL); 
-  sei();
+  //sei();
   return exists;
 }
   
 int dccpktq_next(DCCPktQ *q, DCCPacket **pkt) {
-  cli();
+  //cli();
   if (q->read == NULL) {
-    sei();
+    //sei();
     return 0;
   }
   *pkt = &(q->read->pkt);
@@ -100,7 +109,7 @@ int dccpktq_next(DCCPktQ *q, DCCPacket **pkt) {
   q->read = q->read->next;
   if (q->lastRead->pkt.repeat == 0) 
     remove(q, q->lastRead); /* Remove last packet read if finished repeating */
-  sei();
+  //sei();
   return (*pkt)->size;
 }
 
