@@ -74,7 +74,7 @@ volatile uint8_t pkt_size = 0;
 volatile uint8_t byte_counter = 0; /* Bytes left to transmit in packet */
 volatile uint8_t bit_counter = PREAMBLE_BIT_CNT; /* init for preamble */
 
-int (*nextPacket)(uint8_t **);
+int (*pullNextPacket)(uint8_t **);
 /// A fixed-content packet to send when idle
 //uint8_t DCC_Idle_Packet[3] = {255,0,255};
 /// A fixed-content packet to send to reset all decoders on layout
@@ -84,8 +84,8 @@ int (*nextPacket)(uint8_t **);
    then sets it to toggle OC1A, OC1B, at /8 prescalar, 
    then run the ISR at each interval 
  */
-void dcc_init(int (*grabNextPacketfunc)(uint8_t **)) {
-  nextPacket = grabNextPacketfunc;
+void dcc_init(int (*getNextPacketfunc)(uint8_t **)) {
+  pullNextPacket = getNextPacketfunc;
   init_rail_pins();   /* Set the Timer1 pins OC1A and OC1B pins to output mode */
   TCCR1A = (1 << COM1A0)  /* Toggle OC1A on compare match */
          | (1 << COM1B0); /* Toggle OC1B on compare match */
@@ -115,7 +115,7 @@ int dcc_bytes_left() {
 
 int getNextPacket() {
   uint8_t *bytes;
-  int size = nextPacket(&bytes);
+  int size = pullNextPacket(&bytes);
   if (size > PKT_SIZE) return 0;
   memcpy(pkt, bytes, size);
   pkt_size = byte_counter = size;

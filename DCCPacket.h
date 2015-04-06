@@ -1,10 +1,12 @@
 #ifndef DCCPACKET_H
 #define DCCPACKET_H
 #include <Arduino.h>
+
 #define PKT_SIZE 6
-#define PKT_MULTIFUNCTION_MASK   0x10
-#define PKT_ACCESSORY_MASK     0x40
+#define PKT_MULTIFUNCTION_MASK  0x10
+#define PKT_ACCESSORY_MASK      0x40
 #define DATA_SIZE 3
+#define DCC_BROADCAST_ADDR      0x00
 
 #ifdef __cplusplus
 extern "C" {

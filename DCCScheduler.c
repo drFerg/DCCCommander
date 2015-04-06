@@ -27,8 +27,8 @@ int nextPacket(uint8_t **bytes) {
 
 int dccshed_init() {
   clock = 0;
-  highQ = dccpktq_create(20);
-  lowQ = dccpktq_create(20);
+  highQ = dccpktq_create(10);
+  lowQ = dccpktq_create(10);
   eQ = dccpktq_create(5);
   dcc_init(&nextPacket);
   return (highQ && lowQ && eQ);

@@ -1,4 +1,5 @@
 #include "DCCPktQ.h"
+#include <stdlib.h>
 #define FREECOUNT 10
 
 typedef struct dccpktelem {
@@ -46,12 +47,11 @@ void remove(DCCPktQ *q, DCCPktElem *e) {
 
 DCCPktQ *dccpktq_create(int size) {
   DCCPktQ *q = (DCCPktQ *) malloc(sizeof(DCCPktQ));
-  if (q != NULL){
-    q->size = size;
-    q->count = q->freeCount = 0;
-    q->read = NULL;
-  }
-  return NULL;
+  if (q == NULL) return NULL;
+  q->size = size;
+  q->count = q->freeCount = 0;
+  q->read = NULL;
+  return q;
 }
 
 int dccpktq_insert(DCCPktQ *q, DCCPacket *pkt) {

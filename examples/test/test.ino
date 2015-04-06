@@ -8,11 +8,10 @@
 ********************/
 
 #include <DCCPacket.h>
-#include <DCCPacketQueue.h>
-#include <DCCPacketScheduler.h>
+#include <DCCCommandStation.h>
 
 
-DCCPacketScheduler dps;
+DCCCommandStation dcc;
 unsigned int analog_value;
 char speed_byte, old_speed = 0;
 byte count = 0;
@@ -22,7 +21,7 @@ byte F0 = 0;
 void setup() {
   Serial.begin(115200);
   Serial.print("HELLO\n"); Serial.flush();
-  dps.setup();
+  dcc.setup();
   pinMode(8, OUTPUT);
   digitalWrite(8, HIGH);
   //set up button on pin 4
@@ -53,9 +52,7 @@ void loop() {
     if (i > 0) i--;
     else go = 1;
   }
-  dps.setSpeed128(3, DCC_ADDR_SHORT, 60);
-  //dps.update();
-
+  dcc.setSpeed128(3, DCC_ADDR_SHORT, 60);
   
   ++count;
 }
