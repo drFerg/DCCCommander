@@ -27,10 +27,14 @@
     risks.
 */
 typedef enum {
+#if F_CPU == 16000000
   ONE_BIT = 115, /* 58us */
   ZERO_BIT = 199 /* 100us */
+#elif F_CPU == 8000000
+  ONE_BIT = 57, /* 58us */
+  ZERO_BIT = 99 /* 100us */
+#endif
 } BITS; /* Timer1 TOP values for one and zero bits */
-
 /** Calculating the timer1 counter values (from ATMega168 datasheet, 15.9.2):
     f_{OC1A} = \frac{f_{clk_I/O}}{2*N*(1+OCR1A)})
     where N = prescalar, and OCR1A is the TOP we need to calculate.
@@ -96,6 +100,7 @@ void dcc_init(int (*getNextPacketfunc)(uint8_t **)) {
   TIMSK1 |= (1 << OCIE1A); /* enable the compare match interrupt */
   /* Start outputting 1 bit */
   send_bit(ONE_BIT);
+  printf(">> DCC Hardware setup completed!\n");
 }
 
 /* This is the Interrupt Service Routine (ISR) for Timer1 compare match. */
@@ -115,18 +120,10 @@ int dcc_bytes_left() {
 
 int getNextPacket() {
   uint8_t *bytes;
-  if (byte_counter > 0) return 0;
   int size = pullNextPacket(&bytes);
-
   if (size > PKT_SIZE) return 0;
   memcpy(pkt, bytes, size);
   pkt_size = byte_counter = size;
-  printf("%d>>", size);
-  int j;
-  for (j = 0; j < size; j++) {
-    printf("%x ", (pkt)[j]);
-  }
-  printf("<<\n");
   return size;
 }
 
@@ -144,10 +141,10 @@ ISR(TIMER1_COMPA_vect) {
     switch(dcc_state) {
       case DCC_IDLE: /* Check if a new packet is ready, then send preamble, else send 1 bit. */
         if(byte_counter == 0) { /*if no new packet */
-          //if (getNextPacket() == 0) { /* See if a new packet is waiting to be grabbed */
+          if (getNextPacket() == 0) { /* See if a new packet is waiting to be grabbed */
             send_bit(ONE_BIT); /* Send ones if we don't know what else to do. */
             break;
-          //} /* else we found a new packet so start preamble */
+          } /* else we found a new packet so start preamble */
         }
         dcc_state = DCC_PREAMBLE; //and fall through to DCC_PREAMBLE
       case DCC_PREAMBLE: /* Sending preamble bits(14) before switching to DCC_BYTE_START */

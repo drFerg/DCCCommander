@@ -7,6 +7,9 @@
 #include <string.h>
 #include "cprint.h"
 #define RATE 3 /*Ratio of HIPRI packets to 1 LOPRI packets */
+#define HIGHQ_SIZE 20
+#define LOWQ_SIZE 20
+#define EQ_SIZE 5
 
 DCCPktQ *highQ; /* High priority q for trains and turnouts */
 DCCPktQ *lowQ; /* Low priority q for lighting etc */
@@ -29,7 +32,7 @@ int nextPacket(uint8_t **bytes) {
   }
   if (size) *bytes = pkt->bytes;
   else { 
-    *bytes = &(idle.bytes);
+    *bytes = idle.bytes;
     size = idle.size;
   }
   return size;
@@ -38,13 +41,16 @@ int nextPacket(uint8_t **bytes) {
 int dccshed_init() {
   uint8_t data[1] = {0x00};
   clock = 0;
-  highQ = dccpktq_create(10);
-  lowQ = dccpktq_create(10);
-  eQ = dccpktq_create(5);
+  cprint_init();
+  highQ = dccpktq_create(HIGHQ_SIZE);
+  lowQ = dccpktq_create(LOWQ_SIZE);
+  eQ = dccpktq_create(EQ_SIZE);
   dcc_init(&nextPacket);
   dccpkt_init(&idle, DCC_ADDR_SHORT, 0xFF, PKT_IDLE, data, 1, 1);
-  cprint_init();
-  printf("HIHHH %d\n", 1);
+  printf(">> DCC Scheduler setup completed!\n\t-HighQ(%d): %s\n\t-LowQ(%d): %s\n\t-EQ(%d): %s\n",
+         HIGHQ_SIZE, (highQ ? "PASS" : "FAIL"), 
+         LOWQ_SIZE, (lowQ ? "PASS" : "FAIL"), 
+         EQ_SIZE, (eQ ? "PASS" : "FAIL"));
   return (highQ && lowQ && eQ);
 }
 

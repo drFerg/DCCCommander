@@ -32,8 +32,10 @@ void unlink(DCCPktElem *e) {
 }
 
 void remove(DCCPktQ *q, DCCPktElem *e) {
-  if (q->read == e && e != e->next) q->read = e->next;
-  else q->read = NULL;
+  if (q->read == e) {
+    if (e != e->next) q->read = e->next;
+    else q->read = NULL;
+  }
   unlink(e);
   q->count--;
   if (q->freeCount < FREECOUNT) {
@@ -79,28 +81,17 @@ int dccpktq_insert(DCCPktQ *q, DCCPacket *pkt) {
     q->read = e;
   }
   sei();
-  printf("P>> a: %x t: %x ds: %x s: %x\n", e->pkt.addr, e->pkt.type, e->pkt.data_size, e->pkt.size);
-  int j;
-  for (j = 0; j < e->pkt.size; j++) {
-    printf("%x ", e->pkt.bytes[j]);
-  }
-  printf("\n");
-  printf("q->read: %p\n", q->read);
   return 1;
 }
 
 int dccpktq_hasNext(DCCPktQ *q) {
   int exists = 0;
-  //cli();
   exists = (q->read != NULL); 
-  //sei();
   return exists;
 }
   
 int dccpktq_next(DCCPktQ *q, DCCPacket **pkt) {
-  //cli();
   if (q->read == NULL) {
-    //sei();
     return 0;
   }
   *pkt = &(q->read->pkt);
@@ -109,7 +100,6 @@ int dccpktq_next(DCCPktQ *q, DCCPacket **pkt) {
   q->read = q->read->next;
   if (q->lastRead->pkt.repeat == 0) 
     remove(q, q->lastRead); /* Remove last packet read if finished repeating */
-  //sei();
   return (*pkt)->size;
 }
 
