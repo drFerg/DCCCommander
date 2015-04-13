@@ -60,20 +60,24 @@ void loop() {
     Serial.println(command);
 
     if (command == FORWARD) {
-        trackSpeed += SPEEDINCREMENT;
-        if (trackDir == FORWARD && trackSpeed > 126)
-          trackSpeed = 126; 
-        else if (trackDir == REVERSE && trackSpeed > 0)
-          trackDir = FORWARD;
-      } else if (command == REVERSE) {
-        trackSpeed -= SPEEDINCREMENT;
-        if (trackDir == FORWARD && trackSpeed < 0)
-          trackDir = REVERSE;
-        else if (trackDir == REVERSE && trackSpeed < -126) 
-          trackSpeed = -126;
-      }
-      Serial.print(trackSpeed);
-      Serial.print("-");
-      dcc.setSpeed128(3, DCC_ADDR_SHORT, trackSpeed);
+      trackSpeed += SPEEDINCREMENT;
+      if (trackDir == FORWARD && trackSpeed > 126)
+        trackSpeed = 126; 
+      else if (trackDir == REVERSE && trackSpeed > 0)
+        trackDir = FORWARD;
+    } 
+    else if (command == REVERSE) {
+      trackSpeed -= SPEEDINCREMENT;
+      if (trackDir == FORWARD && trackSpeed < 0)
+        trackDir = REVERSE;
+      else if (trackDir == REVERSE && trackSpeed < -126) 
+        trackSpeed = -126;
+    }
+    Serial.print(trackSpeed);
+    Serial.print("-");
+    if (trackSpeed >= 0) 
+      dcc.setSpeed128(3, DCC_ADDR_SHORT, trackSpeed, DCC_FORWARD);
+    else
+      dcc.setSpeed128(3, DCC_ADDR_SHORT, -trackSpeed, DCC_REVERSE);
   }
 }

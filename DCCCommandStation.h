@@ -7,22 +7,25 @@
 #define E_STOP_REPEAT     5
 #define OPS_MODE_PROGRAMMING_REPEAT 3
 #define OTHER_REPEAT      2
+typedef enum {
+    DCC_STOP = 0,
+    DCC_ESTOP = 1,
+    DCC_REVERSE = 2,
+    DCC_FORWARD = 3,
+} DCCDirection;
 
-class DCCCommandStation
-{
+class DCCCommandStation {
   public:
   
     DCCCommandStation(void);
     
     //for configuration
-    void setDefaultSpeedSteps(uint8_t new_speed_steps);
     void setup(void); //for any post-constructor initialization
     
     //for enqueueing packets
-    bool setSpeed(uint16_t address, DCCAddrType addr_type, int8_t new_speed, uint8_t steps = 0); //new_speed: [-127,127]
-    bool setSpeed14(uint16_t address, DCCAddrType addr_type, int8_t new_speed, bool F0=true); //new_speed: [-13,13], and optionally F0 settings.
-    bool setSpeed28(uint16_t address, DCCAddrType addr_type, int8_t new_speed); //new_speed: [-28,28]
-    bool setSpeed128(uint16_t address, DCCAddrType addr_type, int8_t new_speed); //new_speed: [-127,127]
+    bool setSpeed14(uint16_t address, DCCAddrType addr_type, uint8_t speed, DCCDirection dir); //new_speed: [-13,13], and optionally F0 settings.
+    bool setSpeed28(uint16_t addr, DCCAddrType addr_type, uint8_t speed, DCCDirection dir) // speed: [0, 32]
+    bool setSpeed128(uint16_t addr, DCCAddrType addr_type, uint8_t speed, DCCDirection dir); //new_speed: [0,127]
     
     //the function methods are NOT stateful; you must specify all functions each time you call one
     //keeping track of function state is the responsibility of the calling program.
@@ -41,8 +44,5 @@ class DCCCommandStation
     //more specific functions
     bool eStop(void); //all locos
     bool eStop(uint16_t address, DCCAddrType addr_type); //just one specific loco
-    
-  private:
-    uint8_t default_speed_steps;
 };
 #endif //__DCC_COMMANDSTATION_H__
