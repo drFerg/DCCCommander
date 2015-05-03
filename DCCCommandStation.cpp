@@ -33,7 +33,7 @@ bool DCCCommandStation::setSpeed14(uint16_t address, DCCAddrType addr_type, uint
 
   if (dir == DCC_ESTOP || speed == ESTOP) return eStop(address, addr_type); /* e-stop is 0x01 */
   else if (dir == DCC_STOP || speed == STOP) data[0] |= 0x00; //stop
-  else data[0] |= (speed | (dir << DIR_BIT_28))//convert from [2-127] to [1-14]
+  else data[0] |= (speed | (dir << DIR_BIT_28));//convert from [2-127] to [1-14]
   
   dccpkt_init(&p, addr_type, address, PKT_SPEED, data, 1, SPEED_REPEAT);
   return dccshed_send(DCC_HIPRI, &p);
