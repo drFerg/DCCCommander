@@ -3,7 +3,7 @@
 #include <avr/interrupt.h>
 #include "DCCHardware.h"
 
-#if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__) || defined(__AVR_AT90CAN128__) || defined(__AVR_AT90CAN64__) || defined(__AVR_AT90CAN32__)
+#if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__) || defined(__AVR_AT90CAN128__) || defined(__AVR_AT90CAN64__) || defined(__AVR_AT90CAN32__) || defined(__AVR_ATmega32U4__)
   #define PINBN PINB6 /* On Arduino MEGA, OC1A is digital pin 11 or Port B/Pin 5 */
   #define init_rail_pins() DDRB |= (1 << DDB5) | (1 << DDB6); /* OC1B Port B/Pin 6 */
 #else
