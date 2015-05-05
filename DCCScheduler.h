@@ -12,6 +12,7 @@ typedef enum {
 } DCCPriority;
 
 int dccshed_init();
+int dccshed_status();
 int dccshed_send(DCCPriority pri, DCCPacket *pkt);
 
 #ifdef __cplusplus
