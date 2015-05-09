@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include "cprint.h"
+//#include "cprint.h"
 
 #define RATE 3 /*Ratio of HIPRI packets to 1 LOPRI packets */
 #define HIGHQ_SIZE 20
@@ -42,7 +42,7 @@ int nextPacket(uint8_t **bytes) {
 int dccshed_init() {
   uint8_t data[1] = {0x00};
   clock = 0;
-  cprint_init();
+//  cprint_init();
   highQ = dccpktq_create(HIGHQ_SIZE);
   lowQ = dccpktq_create(LOWQ_SIZE);
   eQ = dccpktq_create(EQ_SIZE);
@@ -52,12 +52,12 @@ int dccshed_init() {
 }
 
 int dccshed_status() {
-  printf(">> DCC Scheduler setup completed!\n\t-HighQ(%d): %s\
-                                           \n\t-LowQ(%d): %s\
-                                           \n\t-EQ(%d): %s\n",
-          HIGHQ_SIZE, (highQ ? "PASS" : "FAIL"),
-          LOWQ_SIZE, (lowQ ? "PASS" : "FAIL"),
-          EQ_SIZE, (eQ ? "PASS" : "FAIL"));
+//  printf(">> DCC Scheduler setup completed!\n\t-HighQ(%d): %s\
+//                                           \n\t-LowQ(%d): %s\
+//                                           \n\t-EQ(%d): %s\n",
+//          HIGHQ_SIZE, (highQ ? "PASS" : "FAIL"),
+//          LOWQ_SIZE, (lowQ ? "PASS" : "FAIL"),
+//          EQ_SIZE, (eQ ? "PASS" : "FAIL"));
 }
 
 int dccshed_send(DCCPriority pri, DCCPacket *pkt) {

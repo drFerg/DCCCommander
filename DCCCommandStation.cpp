@@ -24,7 +24,7 @@ void DCCCommandStation::setup(void) {
   //idle packet: address 0xFF, data 0x00, XOR 0xFF; S 9.2 line 90
   dccpkt_init(&q, DCC_ADDR_SHORT, 0xFF, PKT_IDLE, data, 1, 10);
   dccshed_send(DCC_HIPRI, &q);
-  printf(">> DCC Command Station setup completed!\n");
+//  printf(">> DCC Command Station setup completed!\n");
 }
 
 bool DCCCommandStation::setSpeed14(uint16_t address, DCCAddrType addr_type, uint8_t speed, DCCDirection dir) {
