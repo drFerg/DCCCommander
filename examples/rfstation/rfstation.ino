@@ -43,7 +43,7 @@ void setup() {
   //set up button on pin 4
   pinMode(4, INPUT);
   digitalWrite(4, HIGH); //activate built-in pull-up resistor  
-  dcc.setSpeed128(3, DCC_ADDR_SHORT, 10);
+  dcc.setSpeed128(3, DCC_ADDR_SHORT, 10, DCC_FORWARD);
 }
 
 int i = 10;
