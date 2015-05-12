@@ -120,7 +120,7 @@ int dccpktq_remove(DCCPktQ *q, uint16_t addr) {
 void dccpktq_clear(DCCPktQ *q) {
   DCCPktElem *e;
   cli();
-  while(e = q->read) remove(q, e);
+  while((e = q->read) != NULL) remove(q, e);
   sei();
 }
 
@@ -128,8 +128,8 @@ void dccpktq_destroy(DCCPktQ *q) {
   DCCPktElem *e;
   cli();
   if (q == NULL) return;
-  while(e = q->read) remove(q, e);
-  while(e = q->freeList) free(e);
+  while((e = q->read) != NULL) remove(q, e);
+  while((e = q->freeList) != NULL) free(e);
   free(q);
   sei();
 }
