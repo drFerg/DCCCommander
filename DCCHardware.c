@@ -3,20 +3,34 @@
 #include <avr/interrupt.h>
 #include "DCCHardware.h"
 
-#if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__) || defined(__AVR_AT90CAN128__) || defined(__AVR_AT90CAN64__) || defined(__AVR_AT90CAN32__) || defined(__AVR_ATmega32U4__)
+#if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__) || defined(__AVR_AT90CAN128__) \
+    || defined(__AVR_AT90CAN64__) || defined(__AVR_AT90CAN32__) || defined(__AVR_ATmega32U4__)
   #define PINBN PINB6 /* On Arduino MEGA, OC1A is digital pin 11 or Port B/Pin 5 */
-  #define init_rail_pins() DDRB |= (1 << DDB5) | (1 << DDB6); /* OC1B Port B/Pin 6 */
+  #if defined(SINGLE_OUTPUT)
+    #define init_rail_pins() DDRB |= (1 << DDB5);
+  #else
+    #define init_rail_pins() DDRB |= (1 << DDB5) | (1 << DDB6); /* OC1B Port B/Pin 6 */
+ #endif /* SINGLE_OUTPUT */
 #else
   #define PINBN PINB1 /*On Arduino UNO, OC1A is digital pin 9 or Port B/Pin 1 */
-  #define init_rail_pins() DDRB |= (1 << DDB1) | (1 << DDB2); /* and OC1B Port B/Pin 2 */
+  #if defined(SINGLE_OUTPUT)
+    #define init_rail_pins() DDRB |= (1 << DDB1);
+  #else
+    #define init_rail_pins() DDRB |= (1 << DDB1) | (1 << DDB2); /* and OC1B Port B/Pin 2 */
+  #endif /* SINGLE_OUTPUT */
 #endif
+
 #define PKT_SIZE 6
 #define PREAMBLE_BIT_CNT 14
 #define BYTE_BIT_CNT 8
 #define current_bit() ((pkt[pkt_size - byte_counter]) >> (bit_counter - 1))
 
-/* Whenever we set OCR1A, we must also set OCR1B, or else OC1B will get out of phase with OC1A! */
-#define send_bit(bit) OCR1A = OCR1B = bit 
+#if defined(SINGLE_OUTPUT)
+  #define send_bit(bit) OCR1A = bit
+#else
+  /* Whenever we set OCR1A, we must also set OCR1B, or else OC1B will get out of phase with OC1A! */
+  #define send_bit(bit) OCR1A = OCR1B = bit 
+#endif
 
 /** S 9.1 A - Specifies that bits are represented by a square wave composed by
     two half bit periods on opposite polarities.
@@ -79,10 +93,6 @@ volatile uint8_t byte_counter = 0; /* Bytes left to transmit in packet */
 volatile uint8_t bit_counter = PREAMBLE_BIT_CNT; /* init for preamble */
 
 int (*pullNextPacket)(uint8_t **);
-/// A fixed-content packet to send when idle
-//uint8_t DCC_Idle_Packet[3] = {255,0,255};
-/// A fixed-content packet to send to reset all decoders on layout
-//uint8_t DCC_Reset_Packet[3] = {0,0,0};
 
 /* setup configures timer1 to CTC mode (for waveform generation), 
    then sets it to toggle OC1A, OC1B, at /8 prescalar, 
@@ -91,11 +101,15 @@ int (*pullNextPacket)(uint8_t **);
 void dcc_init(int (*getNextPacketfunc)(uint8_t **)) {
   pullNextPacket = getNextPacketfunc;
   init_rail_pins();   /* Set the Timer1 pins OC1A and OC1B pins to output mode */
-  TCCR1A = (1 << COM1A0)  /* Toggle OC1A on compare match */
-         | (1 << COM1B0); /* Toggle OC1B on compare match */
+  TCCR1A = (1 << COM1A0); /* Toggle OC1A on compare match */
+
+  #if !defined(SINGLE_OUTPUT)
+    TCCR1A |= (1 << COM1B0); /* Toggle OC1B on compare match */
+    TCCR1C |= (1 << FOC1B); /* Force compare match, toggle OC1B to complement pin OC1A */
+  #endif 
+
   TCCR1B = (1 << WGM12)   /* Enable CTC mode */
          | (1 << CS11);   /* Divide the clock by 8 */
-  TCCR1C |= (1 << FOC1B); /* Force compare match, a toggle OC1B so that it will complement pin OC1A */
   TCNT1 = 0; /* Init timer to start at 0 */
   TIMSK1 |= (1 << OCIE1A); /* enable the compare match interrupt */
   /* Start outputting 1 bit */
