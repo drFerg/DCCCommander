@@ -5,10 +5,9 @@
 extern "C"
 {
 #endif
+/* Just call dcc_init to manage the dcc transmissions with a packet providing
+ * function and let it do it's magic in the background (using interrupts) */
 void dcc_init(int (*getNextPacketfunc)(uint8_t **));
-int dcc_bytes_left();
-void dcc_send_bytes(uint8_t *bytes, uint8_t len);
-int getNextPacket();
 #ifdef __cplusplus
 }
 #endif
