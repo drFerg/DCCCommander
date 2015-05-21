@@ -10,9 +10,9 @@ typedef struct dccpktelem {
 } DCCPktElem;
 
 typedef struct dccpktq {
-  DCCPktElem *read; /* read sentinel, rotates around linkedlist */
+  DCCPktElem *read; /* read pointer, rotates around linked list */
   DCCPktElem *lastRead; /* remember last packet read, use for repeat removal */
-  DCCPktElem *freeList; /* free list to store removed elems, saves some mallocing */
+  DCCPktElem *freeList; /* free list to store removed elements */
   int size;
   int count;
   int freeCount;
@@ -46,6 +46,18 @@ void remove(DCCPktQ *q, DCCPktElem *e) {
   }
   else free(e);
 }
+
+int remove_addr_pkt(DCCPktQ *q, uint16_t addr) {
+  DCCPktElem *e;
+  int n, succ = 0;
+  for (n = 0, e = q->read; n < q->count && e->pkt.addr != addr; e = e->next, n++)
+    ; /* Loop through queue to find packet matching address */
+  if (e->pkt.addr == addr) {
+    remove(q, e);
+    succ = 1;
+  }
+  return succ;
+}
 /**********************/
 
 DCCPktQ *dccpktq_create(int size) {
@@ -59,7 +71,7 @@ DCCPktQ *dccpktq_create(int size) {
 
 int dccpktq_insert(DCCPktQ *q, DCCPacket *pkt) {
   DCCPktElem *e = NULL;
-  cli();
+  cli(); /* Disable interrupts to prevent packet removal from interfering */
   if (q->count == q->size) return 0;
   if (q->freeCount){
     e = q->freeList;
@@ -104,15 +116,9 @@ int dccpktq_next(DCCPktQ *q, DCCPacket **pkt) {
 }
 
 int dccpktq_remove(DCCPktQ *q, uint16_t addr) {
-  DCCPktElem *e;
-  int n, succ = 0;
+  int succ = 0;
   cli();
-  for (n = 0, e = q->read; n < q->count && e->pkt.addr != addr; e = e->next, n++)
-    ;
-  if (e->pkt.addr == addr) {
-    remove(q, e);
-    succ = 1;
-  }
+  succ = remove_addr_pkt(q, addr);
   sei();
   return succ;
 }
@@ -120,7 +126,7 @@ int dccpktq_remove(DCCPktQ *q, uint16_t addr) {
 void dccpktq_clear(DCCPktQ *q) {
   DCCPktElem *e;
   cli();
-  while((e = q->read) != NULL) remove(q, e);
+  while((e = q->read) != NULL) remove_addr_pkt(q, e);
   sei();
 }
 
@@ -128,7 +134,7 @@ void dccpktq_destroy(DCCPktQ *q) {
   DCCPktElem *e;
   cli();
   if (q == NULL) return;
-  while((e = q->read) != NULL) remove(q, e);
+  while((e = q->read) != NULL) remove_addr_pkt(q, e);
   while((e = q->freeList) != NULL) free(e);
   free(q);
   sei();
