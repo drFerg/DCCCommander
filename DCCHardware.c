@@ -115,7 +115,6 @@ void dcc_init(int (*getNextPacketfunc)(uint8_t **)) {
   TCNT1 = 0; /* Init timer to start at 0 */
   TIMSK1 |= (1 << OCIE1A); /* enable the compare match interrupt */
   send_bit(ONE_BIT); /* Start outputting 1 bit */
-  printf(">> DCC Hardware setup completed!\n");
 }
 
 /* Retrieves next packet for ISR from provided packet puller function */
@@ -171,3 +170,4 @@ ISR(TIMER1_COMPA_vect) {
         break;
     }
   }
+}
