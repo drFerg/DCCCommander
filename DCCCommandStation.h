@@ -10,8 +10,8 @@
 typedef enum {
     DCC_STOP = 0,
     DCC_ESTOP = 1,
-    DCC_REVERSE = 2,
-    DCC_FORWARD = 3,
+    DCC_FORWARD = 2,
+    DCC_REVERSE = 3,
 } DCCDirection;
 
 class DCCCommandStation {
