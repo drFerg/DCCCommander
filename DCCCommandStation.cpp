@@ -2,26 +2,51 @@
 #include "DCCScheduler.h"
 #include "DCCPacket.h"
 
-#define INSTR_ADV_OPS   0x20
-#define INSTR_14_28_SPEED 0x40
-#define INSTR_128_SPEED 0x1F
 #define DIR_BIT_28  5
 #define DIR_BIT_128 7
 #define STOP 0x01
 #define ESTOP 0x00
 
-DCCCommandStation::DCCCommandStation(void) {}
+#define INSTR_ADV_OPS   0x20
+#define INSTR_14_28_SPEED 0x40
+#define INSTR_128_SPEED 0x1F
+#define INSTR_CV_WRITE 0xEC
+#define INSTR_CV_VERIFY 0xE4
+#define INSTR_CV_BIT_MAN 0xE8
+#define INSTR_FNC_GROUP_ONE 0x80
+#define INSTR_FNC_GROUP_TWO 0xA0
+#define INSTR_FNC_GROUP_TWO_EXT 0xB0
 
-void DCCCommandStation::setup(void) {
+
+#define CV_ADDR_SHORT 0x01
+#define CV_START_VOLT 0x02
+#define CV_ACC_RATE   0x03
+#define CV_SLOW_RATE  0x04
+#define CV_MAX_VOLT   0x05
+#define CV_VOLT_MID   0x06
+#define CV_RESET_DCC  0x08
+#define CV_SPEED_STEPS 0x1D
+#define CV_BEMF_EFFECT 0x39
+
+#define SPEED_REPEAT      3
+#define FUNCTION_REPEAT   3
+#define E_STOP_REPEAT     5
+#define OPS_MODE_PROGRAMMING_REPEAT 3
+#define OTHER_REPEAT      2
+
+DCCCommandStation::DCCCommandStation() {}
+
+void DCCCommandStation::setup() {
   DCCPacket p, q;
   uint8_t data[] = {0x00};
-  //Following RP 9.2.4, begin by putting 20 reset packets and 10 idle packets on the rails.
-  dccshed_init();/* Init DCC hardware and scheduler */
-  /* reset packet: address 0x00, data 0x00, XOR 0x00; S 9.2 line 75 */
+  /* Following RP 9.2.4, begin by putting 20 reset packets and 10 idle packets on the rails.
+   * Init DCC hardware and scheduler */
+  dccshed_init();
+  /* Reset all trains - S 9.2 line 75 */
   dccpkt_init(&p, DCC_ADDR_SHORT, DCC_BROADCAST_ADDR, PKT_RESET, data, 1, 20);
   dccshed_send(DCC_EPRI, &p);
 
-  //idle packet: address 0xFF, data 0x00, XOR 0xFF; S 9.2 line 90
+  /* Send Idle packet after reset - S 9.2 line 90 */
   dccpkt_init(&q, DCC_ADDR_SHORT, 0xFF, PKT_IDLE, data, 1, 10);
   dccshed_send(DCC_HIPRI, &q);
   printf(">> DCC Command Station setup completed!\n");
@@ -67,59 +92,46 @@ bool DCCCommandStation::setSpeed128(uint16_t addr, DCCAddrType addr_type, uint8_
 }
 
 bool DCCCommandStation::setFunctions(uint16_t address, DCCAddrType addr_type, uint16_t functions) {
-  if(setFunctions0to4(address, addr_type, functions&0x1F))
-    if(setFunctions5to8(address, addr_type, (functions>>5)&0x0F))
-      if(setFunctions9to12(address, addr_type, (functions>>9)&0x0F))
-        return true;
+  if(setFunctions0to4(address, addr_type, functions & 0x1F))
+    if(setFunctions5to8(address, addr_type, (functions >> 5) & 0x0F))
+      return setFunctions9to12(address, addr_type, (functions >> 9) & 0x0F);
   return false;
 }
 
-bool DCCCommandStation::setFunctions(uint16_t address, DCCAddrType addr_type, uint8_t F0to4, uint8_t F5to8, uint8_t F9to12)
-{
+bool DCCCommandStation::setFunctions(uint16_t address, DCCAddrType addr_type, uint8_t F0to4, uint8_t F5to8, uint8_t F9to12) {
   if(setFunctions0to4(address, addr_type, F0to4))
     if(setFunctions5to8(address, addr_type, F5to8))
-      if(setFunctions9to12(address, addr_type, F9to12))
-        return true;
+      return setFunctions9to12(address, addr_type, F9to12);
   return false;
 }
 
-bool DCCCommandStation::setFunctions0to4(uint16_t address, DCCAddrType addr_type, uint8_t functions)
-{
-//  Serial.println("setFunctions0to4");
-//  Serial.println(functions,HEX);
+bool DCCCommandStation::setFunctions0to4(uint16_t address, DCCAddrType addr_type, uint8_t functions) {
   DCCPacket p;
-  uint8_t data[] = {0x80};
+  uint8_t data[] = {INSTR_FNC_GROUP_ONE};
   
-  //Obnoxiously, the headlights (F0, AKA FL) are not controlled
-  //by bit 0, but by bit 4. Really?
+  /* The headlights (F0, AKA FL) are not controlled by bit 0, but by bit 4. */
   
-  //get functions 1,2,3,4
-  data[0] |= (functions>>1) & 0x0F;
-  //get functions 0
-  data[0] |= (functions&0x01) << 4;
+  /* get functions 1,2,3,4 */
+  data[0] |= (functions >> 1) & 0x0F;
+  /* get functions 0 */
+  data[0] |= (functions & 0x01) << 4;
   dccpkt_init(&p, addr_type, address, PKT_FUNCTION_1, data, 1, FUNCTION_REPEAT);
   return dccshed_send(DCC_LOPRI, &p);
 }
 
 
-bool DCCCommandStation::setFunctions5to8(uint16_t address, DCCAddrType addr_type, uint8_t functions)
-{
-//  Serial.println("setFunctions5to8");
-//  Serial.println(functions,HEX);
+bool DCCCommandStation::setFunctions5to8(uint16_t address, DCCAddrType addr_type, uint8_t functions) {
   DCCPacket p;
-  uint8_t data[] = {0xB0};
+  uint8_t data[] = {INSTR_FNC_GROUP_TWO};
   
   data[0] |= functions & 0x0F;
   dccpkt_init(&p, addr_type, address, PKT_FUNCTION_2, data, 1, FUNCTION_REPEAT);
   return dccshed_send(DCC_LOPRI, &p);
 }
 
-bool DCCCommandStation::setFunctions9to12(uint16_t address, DCCAddrType addr_type, uint8_t functions)
-{
-//  Serial.println("setFunctions9to12");
-//  Serial.println(functions,HEX);
+bool DCCCommandStation::setFunctions9to12(uint16_t address, DCCAddrType addr_type, uint8_t functions) {
   DCCPacket p;
-  uint8_t data[] = {0xA0};
+  uint8_t data[] = {INSTR_FNC_GROUP_TWO_EXT};
   
   //least significant four functions (F5--F8)
   data[0] |= functions & 0x0F;
@@ -127,60 +139,49 @@ bool DCCCommandStation::setFunctions9to12(uint16_t address, DCCAddrType addr_typ
   return dccshed_send(DCC_LOPRI, &p);
 }
 
-
-//other cool functions to follow. Just get these working first, I think.
-
 //bool DCCCommandStation::setTurnout(uint16_t address)
 //bool DCCCommandStation::unsetTurnout(uint16_t address)
 
-bool DCCCommandStation::opsProgramCV(uint16_t address, DCCAddrType addr_type, uint16_t CV, uint8_t CV_data)
-{
-  //format of packet:
-  // {preamble} 0 [ AAAAAAAA ] 0 111011VV 0 VVVVVVVV 0 DDDDDDDD 0 EEEEEEEE 1 (write)
-  // {preamble} 0 [ AAAAAAAA ] 0 111001VV 0 VVVVVVVV 0 DDDDDDDD 0 EEEEEEEE 1 (verify)
-  // {preamble} 0 [ AAAAAAAA ] 0 111010VV 0 VVVVVVVV 0 DDDDDDDD 0 EEEEEEEE 1 (bit manipulation)
-  // only concerned with "write" form here.
+bool DCCCommandStation::opsProgramCV(uint16_t address, DCCAddrType addr_type, uint16_t CV, uint8_t CV_data) {
+  /* s-9.2.1_2012_07 page 8 */
+  /* format of packet:
+   * {preamble} 0 [ AAAAAAAA ] 0 111011VV 0 VVVVVVVV 0 DDDDDDDD 0 EEEEEEEE 1 (write) */
   
   DCCPacket p;
-  uint8_t data[] = {0xEC, 0x00, 0x00};
+  uint8_t data[] = {INSTR_CV_WRITE, 0x00, 0x00};
   
-  // split the CV address up among data uint8_ts 0 and 1
-  data[0] |= ((CV-1) & 0x3FF) >> 8;
-  data[1] = (CV-1) & 0xFF;
+  /* Split up 10-bit CV address among first and second data bytes */
+  data[0] |= ((CV - 1) & 0x3FF) >> 8; /* 2 most significant bits in 1st byte */
+  data[1] = (CV - 1) & 0xFF; /* Other 8 in 2nd byte */
   data[2] = CV_data;
   
   dccpkt_init(&p, addr_type, address, PKT_OPS_MODE, data, 3, OPS_MODE_PROGRAMMING_REPEAT);
   return dccshed_send(DCC_LOPRI, &p);
 }
-//more specific functions
 
-//broadcast e-stop command
-bool DCCCommandStation::eStop(void)
-{
+/* broadcast e-stop command */
+bool DCCCommandStation::eStop() {
     // 111111111111 0 00000000 0 01DC0001 0 EEEEEEEE 1
-    DCCPacket p; //address 0
+    DCCPacket p;
     uint8_t data[] = {0x71}; //01110001
-    dccpkt_init(&p, DCC_ADDR_SHORT, 0x00, PKT_E_STOP, data, 1, 10);
+    dccpkt_init(&p, DCC_ADDR_SHORT, DCC_BROADCAST_ADDR, PKT_E_STOP, data, 1, E_STOP_REPEAT);
     dccshed_send(DCC_EPRI, &p);
     return true;
 }
     
-bool DCCCommandStation::eStop(uint16_t address, DCCAddrType addr_type)
-{
+bool DCCCommandStation::eStop(uint16_t address, DCCAddrType addr_type) {
     // 111111111111 0	0AAAAAAA 0 01001001 0 EEEEEEEE 1
     // or
     // 111111111111 0	0AAAAAAA 0 01000001 0 EEEEEEEE 1
     DCCPacket p;
     uint8_t data[] = {0x41}; //01000001
-    dccpkt_init(&p, addr_type, address, PKT_E_STOP, data, 1, 10);
+    dccpkt_init(&p, addr_type, address, PKT_E_STOP, data, 1, E_STOP_REPEAT);
     dccshed_send(DCC_EPRI, &p);
     return true;
 }
 
-bool DCCCommandStation::setBasicAccessory(uint16_t address, uint8_t function)
-{
+bool DCCCommandStation::setBasicAccessory(uint16_t address, uint8_t function) {
     DCCPacket p;
-
 	  uint8_t data[] = { 0x01 | ((function & 0x03) << 1) };
     dccpkt_init(&p, DCC_ADDR_ACCESS, address, PKT_BASIC_ACCESSORY, data, 1, OTHER_REPEAT);
 	  return dccshed_send(DCC_LOPRI, &p);

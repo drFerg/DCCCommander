@@ -2,11 +2,6 @@
 #define __DCCCOMMANDSTATION_H__
 #include "DCCPacket.h"
 
-#define SPEED_REPEAT      3
-#define FUNCTION_REPEAT   3
-#define E_STOP_REPEAT     5
-#define OPS_MODE_PROGRAMMING_REPEAT 3
-#define OTHER_REPEAT      2
 typedef enum {
     DCC_STOP = 0,
     DCC_ESTOP = 1,
