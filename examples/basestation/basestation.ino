@@ -6,11 +6,30 @@
 #include <SPI.h>
 #include "RF24.h"
 
+#define MAX_DATA_SIZE 3
+
+#define CMD_ADDR 0
+#define CMD_SPEED 1
+
 typedef struct train_packet {
+  uint8_t cmd;
   uint16_t addr;
+  uint8_t data[MAX_DATA_SIZE];
+} Train_Packet;
+
+typedef struct speed_packet {
   uint8_t speed;
   uint8_t dir;
-}Train_Packet;
+} Speed_Packet;
+
+typedef struct addr_packet {
+  uint8_t new_addr;
+} Addr_Packet;
+
+typedef struct cv_packet {
+  uint16_t cv_addr;
+  uint8_t cv_data;
+} CV_Packet;
 
 #define FORWARD 1
 #define REVERSE 2
@@ -36,29 +55,28 @@ void setup() {
   radio.setAutoAck(true);
   radio.powerUp();
   radio.startListening();
-
   dcc.setup();
-  pinMode(8, OUTPUT);
-  pinMode(13, OUTPUT);
-  digitalWrite(8, HIGH);
-  digitalWrite(13, HIGH);
-  //set up button on pin 4
-  pinMode(4, INPUT);
-  digitalWrite(4, HIGH); //activate built-in pull-up resistor  
 }
 
-int i = 10;
 Train_Packet tPkt;
+Speed_Packet *sPkt;
+Addr_Packet *aPkt;
 
 void loop() {
   if (radio.available()){
     // Fetch the payload.
     radio.read(&tPkt, sizeof(Train_Packet));
-    Serial.println(tPkt.addr);
-    Serial.print(tPkt.speed);
-    Serial.print("-");
-    Serial.println(tPkt.dir);
-
-    dcc.setSpeed128(tPkt.addr, DCC_ADDR_SHORT, tPkt.speed, (DCCDirection) tPkt.dir);
+    switch(tPkt.cmd) {
+      case (CMD_ADDR):
+        aPkt = (Addr_Packet *) &(tPkt.data);
+        dcc.setAddrShort(tPkt.addr, aPkt->new_addr);
+        Serial.println("Set addr");
+        break;
+      case (CMD_SPEED):
+        sPkt = (Speed_Packet *) &(tPkt.data);
+        dcc.setSpeed128(tPkt.addr, DCC_ADDR_SHORT, sPkt->speed, (DCCDirection) sPkt->dir);
+        Serial.println("Set speed");
+        break;
+    }   
   }
 }

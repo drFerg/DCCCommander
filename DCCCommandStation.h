@@ -35,6 +35,7 @@ class DCCCommandStation {
     bool unsetBasicAccessory(uint16_t address, uint8_t function);
     
     bool opsProgramCV(uint16_t address, DCCAddrType addr_type, uint16_t CV, uint8_t CV_data);
+    bool setAddrShort(uint16_t addr, uint16_t new_addr);
 
     //more specific functions
     bool eStop(void); //all locos
