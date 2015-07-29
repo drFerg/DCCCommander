@@ -4,7 +4,7 @@
 #include "DCCHardware.h"
 
 #if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__) || defined(__AVR_AT90CAN128__) \
-    || defined(__AVR_AT90CAN64__) || defined(__AVR_AT90CAN32__) || defined(__AVR_ATmega32U4__)
+ || defined(__AVR_AT90CAN64__)  || defined(__AVR_AT90CAN32__)  || defined(__AVR_ATmega32U4__)
   #define PINBN PINB6 /* On Arduino MEGA, OC1A is digital pin 11 or Port B/Pin 5 */
   #if defined(SINGLE_OUTPUT)
     #define init_rail_pins() DDRB |= (1 << DDB5);
@@ -24,6 +24,7 @@
 #define PREAMBLE_BIT_CNT 14
 #define BYTE_BIT_CNT 8
 #define current_bit() ((pkt[pkt_size - byte_counter]) >> (bit_counter - 1))
+#define PRESCALAR 8000000
 
 #if defined(SINGLE_OUTPUT)
   #define send_bit(bit) OCR1A = bit
@@ -47,28 +48,19 @@
     We know the desired half period for each case, 58us and >100us.
     So:
       for ones:
-      58us = (8 * (1 + OCR1A)) / (16MHz)
-      58us * 16MHz = 8 * (1 + OCR1A)
-      58us * 2MHz = 1 + OCR1A
+      58us = (PRESCALAR * (1 + OCR1A)) / (16MHz)
+      OCR1A = ((58 * F_CPU) / PRESCALAR) - 1
       OCR1A = 115
-
+      
       for zeros:
-      100us * 2MHz = 1+OCR1A
+      100us * 2MHz = 1 + OCR1A
+      OCR1A = ((100 * F_CPU) / PRESCALAR) - 1
       OCR1A = 199
-
-    Thus, we also know that the valid range for stretched-zero operation is something like this:
-    9900us = (8*(1+OCR1A)) / (16MHz)
-    9900us * 2MHz = 1+OCR1A
-    OCR1A = 19799
 */
+
 typedef enum {
-#if F_CPU == 16000000
-  ONE_BIT = 115, /* 58us */
-  ZERO_BIT = 199 /* 100us */
-#elif F_CPU == 8000000
-  ONE_BIT = 57, /* 58us */
-  ZERO_BIT = 99 /* 100us */
-#endif
+  ONE_BIT = ((58 * F_CPU) / PRESCALAR) - 1, /* 58us */
+  ZERO_BIT = ((100 * F_CPU) / PRESCALAR) - 1 /* 100us */
 } BITS; /* Timer1 TOP values for one and zero bits */
 
 /** Given the structure of a DCC packet, the ISR can be in one of 5 states.

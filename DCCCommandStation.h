@@ -2,16 +2,11 @@
 #define __DCCCOMMANDSTATION_H__
 #include "DCCPacket.h"
 
-#define SPEED_REPEAT      3
-#define FUNCTION_REPEAT   3
-#define E_STOP_REPEAT     5
-#define OPS_MODE_PROGRAMMING_REPEAT 3
-#define OTHER_REPEAT      2
 typedef enum {
     DCC_STOP = 0,
     DCC_ESTOP = 1,
-    DCC_REVERSE = 2,
-    DCC_FORWARD = 3,
+    DCC_FORWARD = 2,
+    DCC_REVERSE = 3,
 } DCCDirection;
 
 class DCCCommandStation {
@@ -40,6 +35,7 @@ class DCCCommandStation {
     bool unsetBasicAccessory(uint16_t address, uint8_t function);
     
     bool opsProgramCV(uint16_t address, DCCAddrType addr_type, uint16_t CV, uint8_t CV_data);
+    bool setAddrShort(uint16_t addr, uint16_t new_addr);
 
     //more specific functions
     bool eStop(void); //all locos
