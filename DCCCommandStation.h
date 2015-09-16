@@ -16,8 +16,8 @@ class DCCCommandStation {
     
     //for configuration
     void setup(void); //for any post-constructor initialization
-    bool reset(uint16_t addr, DCCAddrType addr_type);
-	
+	bool reset(uint16_t addr, DCCAddrType addr_type);
+    
     //for enqueueing packets
     bool setSpeed14(uint16_t address, DCCAddrType addr_type, uint8_t speed, DCCDirection dir); //new_speed: [-13,13], and optionally F0 settings.
     bool setSpeed28(uint16_t addr, DCCAddrType addr_type, uint8_t speed, DCCDirection dir); // speed: [0, 32]
@@ -25,12 +25,13 @@ class DCCCommandStation {
     
     //the function methods are NOT stateful; you must specify all functions each time you call one
     //keeping track of function state is the responsibility of the calling program.
-    bool setFunctions(uint16_t address, DCCAddrType addr_type, uint8_t F0to4, uint8_t F5to9=0x00, uint8_t F9to12=0x00);
-    bool setFunctions(uint16_t address, DCCAddrType addr_type, uint16_t functions);
+    bool setFunctions(uint16_t address, DCCAddrType addr_type, uint8_t F0to4, uint8_t F5to9=0x00, uint8_t F9to12=0x00, uint8_t F13to20=0x00, uint8_t F21to28=0x00);
+    bool setFunctions(uint16_t address, DCCAddrType addr_type, uint32_t functions);
     bool setFunctions0to4(uint16_t address, DCCAddrType addr_type, uint8_t functions);
     bool setFunctions5to8(uint16_t address, DCCAddrType addr_type, uint8_t functions);
     bool setFunctions9to12(uint16_t address, DCCAddrType addr_type, uint8_t functions);
-    //other cool functions to follow. Just get these working first, I think.
+	bool setFunctions13to20(uint16_t address, DCCAddrType addr_type, uint8_t functions);
+	bool setFunctions21to28(uint16_t address, DCCAddrType addr_type, uint8_t functions);
     
     bool setBasicAccessory(uint16_t address, uint8_t function);
     bool unsetBasicAccessory(uint16_t address, uint8_t function);
