@@ -16,7 +16,8 @@ class DCCCommandStation {
     
     //for configuration
     void setup(void); //for any post-constructor initialization
-    
+    bool reset(uint16_t addr, DCCAddrType addr_type);
+	
     //for enqueueing packets
     bool setSpeed14(uint16_t address, DCCAddrType addr_type, uint8_t speed, DCCDirection dir); //new_speed: [-13,13], and optionally F0 settings.
     bool setSpeed28(uint16_t addr, DCCAddrType addr_type, uint8_t speed, DCCDirection dir); // speed: [0, 32]

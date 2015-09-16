@@ -53,6 +53,13 @@ void DCCCommandStation::setup() {
   printf(">> DCC Command Station setup completed!\n");
 }
 
+bool DCCCommandStation::reset(uint16_t addr, DCCAddrType addr_type) {
+	  DCCPacket p;
+	  uint8_t data[] = {0x00};
+	  dccpkt_init(&p, addr_type, addr, PKT_RESET, data, sizeof data, 20);
+	  return dccshed_send(DCC_EPRI, &p);
+}
+
 bool DCCCommandStation::setSpeed14(uint16_t addr, DCCAddrType addr_type, uint8_t speed, DCCDirection dir) {
   DCCPacket p;
   uint8_t data[] = {INSTR_14_28_SPEED};
