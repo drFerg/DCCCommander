@@ -4,8 +4,8 @@
 
 #define DIR_BIT_28  5
 #define DIR_BIT_128 7
-#define STOP 0x01
-#define ESTOP 0x00
+#define STOP 0x00
+#define ESTOP 0x01
 
 #define INSTR_ADV_OPS   0x20
 #define INSTR_14_28_SPEED 0x40
@@ -74,7 +74,7 @@ bool DCCCommandStation::setSpeed28(uint16_t addr, DCCAddrType addr_type, uint8_t
   else {
     data[0] |= (speed | (dir << DIR_BIT_28));
     /* least significant speed bit is moved to bit 4 (MSB), and rest is shifted down */
-    data[0] |= ((data[0] & 0x1F) >> 1) | ((data[0] & 0x01) << 4);
+    data[0] = ((data[0] & 0x1F) >> 1) | ((data[0] & 0x01) << 4) | (data[0]&0xE0);
   }
   dccpkt_init(&p, addr_type, addr, PKT_SPEED, data, sizeof data, SPEED_REPEAT);
   return dccshed_send(DCC_HIPRI, &p);
