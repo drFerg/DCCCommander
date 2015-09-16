@@ -2,6 +2,8 @@
 #include "DCCScheduler.h"
 #include "DCCPacket.h"
 
+//#define DEBUG_OUTPUT //Uncomment to enable printf() and Serial.print() output
+
 #define DIR_BIT_28  5
 #define DIR_BIT_128 7
 #define STOP 0x00
@@ -16,6 +18,8 @@
 #define INSTR_FNC_GROUP_ONE 0x80
 #define INSTR_FNC_GROUP_TWO 0xA0
 #define INSTR_FNC_GROUP_TWO_EXT 0xB0
+#define INSTR_FNC_GROUP_THREE 0xDE
+#define INSTR_FNC_GROUP_FOUR 0xDF
 
 
 #define CV_ADDR_SHORT 0x01
@@ -50,14 +54,16 @@ void DCCCommandStation::setup() {
   /* Send Idle packet after reset - S 9.2 line 90 */
   dccpkt_init(&q, DCC_ADDR_SHORT, 0xFF, PKT_IDLE, data, sizeof data, 10);
   dccshed_send(DCC_HIPRI, &q);
-  printf(">> DCC Command Station setup completed!\n");
+  #ifdef DEBUG_OUTPUT
+    printf(">> DCC Command Station setup completed!\n");
+  #endif
 }
 
 bool DCCCommandStation::reset(uint16_t addr, DCCAddrType addr_type) {
-	  DCCPacket p;
-	  uint8_t data[] = {0x00};
-	  dccpkt_init(&p, addr_type, addr, PKT_RESET, data, sizeof data, 20);
-	  return dccshed_send(DCC_EPRI, &p);
+  DCCPacket p;
+  uint8_t data[] = {0x00};
+  dccpkt_init(&p, addr_type, addr, PKT_RESET, data, sizeof data, 20);
+  return dccshed_send(DCC_EPRI, &p);
 }
 
 bool DCCCommandStation::setSpeed14(uint16_t addr, DCCAddrType addr_type, uint8_t speed, DCCDirection dir) {
@@ -81,7 +87,7 @@ bool DCCCommandStation::setSpeed28(uint16_t addr, DCCAddrType addr_type, uint8_t
   else {
     data[0] |= (speed | (dir << DIR_BIT_28));
     /* least significant speed bit is moved to bit 4 (MSB), and rest is shifted down */
-    data[0] = ((data[0] & 0x1F) >> 1) | ((data[0] & 0x01) << 4) | (data[0]&0xE0);
+	data[0] = ((data[0] & 0x1F) >> 1) | ((data[0] & 0x01) << 4) | (data[0]&0xE0);
   }
   dccpkt_init(&p, addr_type, addr, PKT_SPEED, data, sizeof data, SPEED_REPEAT);
   return dccshed_send(DCC_HIPRI, &p);
@@ -99,17 +105,21 @@ bool DCCCommandStation::setSpeed128(uint16_t addr, DCCAddrType addr_type, uint8_
   return dccshed_send(DCC_HIPRI, &p);
 }
 
-bool DCCCommandStation::setFunctions(uint16_t addr, DCCAddrType addr_type, uint16_t functions) {
+bool DCCCommandStation::setFunctions(uint16_t addr, DCCAddrType addr_type, uint32_t functions) {
   if(setFunctions0to4(addr, addr_type, functions & 0x1F))
     if(setFunctions5to8(addr, addr_type, (functions >> 5) & 0x0F))
-      return setFunctions9to12(addr, addr_type, (functions >> 9) & 0x0F);
+      if(setFunctions9to12(addr, addr_type, (functions >> 9) & 0x0F))
+	    if(setFunctions13to20(addr, addr_type, (functions >> 13) & 0xFF))
+		  if(setFunctions21to28(addr, addr_type, (functions >> 21) & 0xFF))
   return false;
 }
 
-bool DCCCommandStation::setFunctions(uint16_t addr, DCCAddrType addr_type, uint8_t F0to4, uint8_t F5to8, uint8_t F9to12) {
+bool DCCCommandStation::setFunctions(uint16_t addr, DCCAddrType addr_type, uint8_t F0to4, uint8_t F5to8, uint8_t F9to12, uint8_t F13to20, uint8_t F21to28) {
   if(setFunctions0to4(addr, addr_type, F0to4))
     if(setFunctions5to8(addr, addr_type, F5to8))
-      return setFunctions9to12(addr, addr_type, F9to12);
+      if(setFunctions9to12(addr, addr_type, F9to12))
+	    if(setFunctions13to20(addr, addr_type, F13to20))
+		  return setFunctions21to28(addr, addr_type, F21to28);
   return false;
 }
 
@@ -145,6 +155,26 @@ bool DCCCommandStation::setFunctions9to12(uint16_t addr, DCCAddrType addr_type, 
   
   //least significant four functions (F5--F8)
   data[0] |= functions & 0x0F;
+  dccpkt_init(&p, addr_type, addr, PKT_FUNCTION_3,
+              data, sizeof data, FUNCTION_REPEAT);
+  return dccshed_send(DCC_LOPRI, &p);
+}
+
+bool DCCCommandStation::setFunctions13to20(uint16_t addr, DCCAddrType addr_type, uint8_t functions) {
+  DCCPacket p;
+  uint8_t data[] = {INSTR_FNC_GROUP_THREE, 0x00};
+
+  data[1] = functions;
+  dccpkt_init(&p, addr_type, addr, PKT_FUNCTION_3,
+              data, sizeof data, FUNCTION_REPEAT);
+  return dccshed_send(DCC_LOPRI, &p);
+}
+
+bool DCCCommandStation::setFunctions21to28(uint16_t addr, DCCAddrType addr_type, uint8_t functions) {
+  DCCPacket p;
+  uint8_t data[] = {INSTR_FNC_GROUP_FOUR, 0x00};
+
+  data[1] = functions;
   dccpkt_init(&p, addr_type, addr, PKT_FUNCTION_3,
               data, sizeof data, FUNCTION_REPEAT);
   return dccshed_send(DCC_LOPRI, &p);
