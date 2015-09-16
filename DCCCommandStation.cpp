@@ -4,8 +4,8 @@
 
 #define DIR_BIT_28  5
 #define DIR_BIT_128 7
-#define STOP 0x01
-#define ESTOP 0x00
+#define STOP 0x00
+#define ESTOP 0x01
 
 #define INSTR_ADV_OPS   0x20
 #define INSTR_14_28_SPEED 0x40
