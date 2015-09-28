@@ -43,9 +43,9 @@ DCCCommandStation::DCCCommandStation() {}
 void DCCCommandStation::setup() {
   DCCPacket p, q;
   uint8_t data[] = {0x00};
+  dccshed_init();
   /* Following RP 9.2.4, begin by putting 20 reset packets and 10 idle packets on the rails.
    * Init DCC hardware and scheduler */
-  dccshed_init();
   /* Reset all trains - S 9.2 line 75 */
   dccpkt_init(&p, DCC_ADDR_SHORT, DCC_BROADCAST_ADDR, PKT_RESET, 
               data, sizeof data, 20);

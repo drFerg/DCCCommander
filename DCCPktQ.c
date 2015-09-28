@@ -18,7 +18,11 @@ typedef struct dccpktq {
   int freeCount;
 } DCCPktQ;
 
+/******************************/
 /* Linked-List help functions */
+/******************************/
+
+/* Link new element between existing before and after elements */
 void link(DCCPktElem *before, DCCPktElem *e, DCCPktElem *after) {
   before->next = e;
   e->prev = before;
@@ -26,11 +30,15 @@ void link(DCCPktElem *before, DCCPktElem *e, DCCPktElem *after) {
   e->next = after;
 }
 
+/* Unlinks an element from the queue, 
+ * joins the elements next and previous elements together
+ */
 void unlink(DCCPktElem *e) {
   e->prev->next = e->next;
   e->next->prev = e->prev;
 }
 
+/* Removes element from list, unlinking element and resetting read */
 void remove(DCCPktQ *q, DCCPktElem *e) {
   if (q->read == e) {
     if (e != e->next) q->read = e->next;
@@ -38,6 +46,7 @@ void remove(DCCPktQ *q, DCCPktElem *e) {
   }
   unlink(e);
   q->count--;
+  /* Save time malloc'ing next time and add to freelist */
   if (q->freeCount < FREECOUNT) {
     e->next = q->freeList;
     e->prev = NULL;
@@ -47,6 +56,7 @@ void remove(DCCPktQ *q, DCCPktElem *e) {
   else free(e);
 }
 
+/* Find and remove a specific packet matched by its address */
 int remove_addr_pkt(DCCPktQ *q, uint16_t addr) {
   DCCPktElem *e;
   int n, succ = 0;
@@ -58,6 +68,9 @@ int remove_addr_pkt(DCCPktQ *q, uint16_t addr) {
   }
   return succ;
 }
+
+/**********************/
+/* Public functions   */
 /**********************/
 
 DCCPktQ *dccpktq_create(int size) {
@@ -66,6 +79,7 @@ DCCPktQ *dccpktq_create(int size) {
   q->size = size;
   q->count = q->freeCount = 0;
   q->read = NULL;
+  q->lastRead = NULL;
   return q;
 }
 
@@ -89,29 +103,30 @@ int dccpktq_insert(DCCPktQ *q, DCCPacket *pkt) {
     e->next = e->prev = e;
   }
   else {
-    link(q->read->prev, e, q->read);
-    q->read = e;
+    link(q->read->prev, e, q->read); /* Insert before next packet to read */
+    q->read = e; /* Set new packet to next packet to send */
   }
   sei();
   return 1;
 }
 
 int dccpktq_hasNext(DCCPktQ *q) {
-  int exists = 0;
-  exists = (q->read != NULL); 
-  return exists;
+  return q->read != NULL;
 }
-  
+
 int dccpktq_next(DCCPktQ *q, DCCPacket **pkt) {
-  if (q->read == NULL) {
-    return 0;
+  /* Remove last packet read if we're finished repeating it */
+  if (q->lastRead && q->lastRead->pkt.repeat == 0) {
+    remove(q, q->lastRead);
+    q->lastRead = NULL; /* Other packets are safe until they are next read */
   }
-  *pkt = &(q->read->pkt);
+  if (q->read == NULL) return 0;
+  *pkt = &(q->read->pkt); /* Pass packet for reading */
   (*pkt)->repeat--;
+  /* Remember packet we're reading now,
+   * in case something is inserted after us */
   q->lastRead = q->read;
   q->read = q->read->next;
-  if (q->lastRead->pkt.repeat == 0) 
-    remove(q, q->lastRead); /* Remove last packet read if finished repeating */
   return (*pkt)->size;
 }
 
