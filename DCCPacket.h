@@ -7,6 +7,7 @@
 #define PKT_ACCESSORY_MASK      0x40
 #define DATA_SIZE 3
 #define DCC_BROADCAST_ADDR      0x00
+#define PKT_REPEAT_FOREVER      255
 
 #ifdef __cplusplus
 extern "C" {

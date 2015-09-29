@@ -122,7 +122,7 @@ int dccpktq_next(DCCPktQ *q, DCCPacket **pkt) {
   }
   if (q->read == NULL) return 0;
   *pkt = &(q->read->pkt); /* Pass packet for reading */
-  (*pkt)->repeat--;
+  if ((*pkt)->repeat != PKT_REPEAT_FOREVER) (*pkt)->repeat--;
   /* Remember packet we're reading now,
    * in case something is inserted after us */
   q->lastRead = q->read;
