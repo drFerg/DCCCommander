@@ -9,6 +9,7 @@
 #define STOP 0x00
 #define ESTOP 0x01
 
+#define INSTR_RESET 0x00
 #define INSTR_ADV_OPS   0x20
 #define INSTR_14_28_SPEED 0x40
 #define INSTR_128_SPEED 0x1F
@@ -20,6 +21,8 @@
 #define INSTR_FNC_GROUP_TWO_EXT 0xB0
 #define INSTR_FNC_GROUP_THREE 0xDE
 #define INSTR_FNC_GROUP_FOUR 0xDF
+#define INSTR_ESTOP_ALL 0x71 /* 01110001 */
+#define INSTR_ESTOP 0x41 /* 01000001 */
 
 
 #define CV_ADDR_SHORT 0x01
@@ -43,11 +46,12 @@ DCCCommandStation::DCCCommandStation() {}
 void DCCCommandStation::setup() {
   DCCPacket p, q;
   uint8_t data[] = {0x00};
-  /* Following RP 9.2.4, begin by putting 20 reset packets and 10 idle packets on the rails.
+  /* Following RP 9.2.4,
+   * begin by putting 20 reset packets and 10 idle packets on the rails.
    * Init DCC hardware and scheduler */
   dccshed_init();
   /* Reset all trains - S 9.2 line 75 */
-  dccpkt_init(&p, DCC_ADDR_SHORT, DCC_BROADCAST_ADDR, PKT_RESET, 
+  dccpkt_init(&p, DCC_ADDR_SHORT, DCC_BROADCAST_ADDR, PKT_RESET,
               data, sizeof data, 20);
   dccshed_send(DCC_EPRI, &p);
 
@@ -61,120 +65,131 @@ void DCCCommandStation::setup() {
 
 bool DCCCommandStation::reset(uint16_t addr, DCCAddrType addr_type) {
   DCCPacket p;
-  uint8_t data[] = {0x00};
+  uint8_t data[] = {INSTR_RESET};
   dccpkt_init(&p, addr_type, addr, PKT_RESET, data, sizeof data, 20);
   return dccshed_send(DCC_EPRI, &p);
 }
 
-bool DCCCommandStation::setSpeed14(uint16_t addr, DCCAddrType addr_type, uint8_t speed, DCCDirection dir) {
+bool DCCCommandStation::setSpeed14(uint16_t addr, DCCAddrType addr_type,
+                                   uint8_t speed, DCCDirection dir) {
   DCCPacket p;
   uint8_t data[] = {INSTR_14_28_SPEED};
 
-  if (dir == DCC_ESTOP || speed == ESTOP) return eStop(addr, addr_type); /* e-stop is 0x01 */
-  else if (dir == DCC_STOP || speed == STOP) data[0] |= 0x00; //stop
-  else data[0] |= (speed | (dir << DIR_BIT_28));//convert from [2-127] to [1-14]
-  
+  if (dir == DCC_ESTOP || speed == ESTOP)
+    return eStop(addr, addr_type); /* e-stop is 0x01 */
+  else if (dir == DCC_STOP || speed == STOP)
+    data[0] |= 0x00; /* stop is 0x00 */
+  else
+    data[0] |= (speed | (dir << DIR_BIT_28)); /* convert [2-127] to [1-14] */
+
   dccpkt_init(&p, addr_type, addr, PKT_SPEED, data, sizeof data, SPEED_REPEAT);
   return dccshed_send(DCC_HIPRI, &p);
 }
 
-bool DCCCommandStation::setSpeed28(uint16_t addr, DCCAddrType addr_type, uint8_t speed, DCCDirection dir) {
+bool DCCCommandStation::setSpeed28(uint16_t addr, DCCAddrType addr_type,
+                                   uint8_t speed, DCCDirection dir) {
   DCCPacket p;
   uint8_t data[] = {INSTR_14_28_SPEED};
 
-  if (dir == DCC_ESTOP || speed == ESTOP) return eStop(addr, addr_type);/* e-stop is 0x01 */
-  else if (dir == DCC_STOP || speed == STOP) data[0] |= 0x00; //stop
+  if (dir == DCC_ESTOP || speed == ESTOP)
+    return eStop(addr, addr_type); /* e-stop is 0x01 */
+  else if (dir == DCC_STOP || speed == STOP)
+    data[0] |= 0x00; /* stop is 0x00 */
   else {
     data[0] |= (speed | (dir << DIR_BIT_28));
-    /* least significant speed bit is moved to bit 4 (MSB), and rest is shifted down */
-	data[0] = ((data[0] & 0x1F) >> 1) | ((data[0] & 0x01) << 4) | (data[0]&0xE0);
+    /* least significant speed bit is moved to bit 4 (MSB)
+     * and rest is shifted down */
+	  data[0] = ((data[0] & 0x1F) >> 1) |
+              ((data[0] & 0x01) << 4) |
+              (data[0]&0xE0);
   }
   dccpkt_init(&p, addr_type, addr, PKT_SPEED, data, sizeof data, SPEED_REPEAT);
   return dccshed_send(DCC_HIPRI, &p);
 }
 
-bool DCCCommandStation::setSpeed128(uint16_t addr, DCCAddrType addr_type, uint8_t speed, DCCDirection dir) {
+bool DCCCommandStation::setSpeed128(uint16_t addr, DCCAddrType addr_type,
+                                    uint8_t speed, DCCDirection dir) {
   DCCPacket p;
   uint8_t data[] = {INSTR_ADV_OPS | INSTR_128_SPEED, 0x00};
 
-  if (dir == DCC_ESTOP || speed == ESTOP) return eStop(addr, addr_type); /* e-stop is 0x01 */
-  else if (dir == DCC_STOP || speed == STOP) data[1] = 0x00; /* convert to regular stop */
-  else data[1] = (speed | (dir << DIR_BIT_128));
+  if (dir == DCC_ESTOP || speed == ESTOP)
+    return eStop(addr, addr_type); /* e-stop is 0x01 */
+  else if (dir == DCC_STOP || speed == STOP)
+    data[1] = 0x00; /* stop is 0x00 */
+  else
+    data[1] = (speed | (dir << DIR_BIT_128));
 
   dccpkt_init(&p, addr_type, addr, PKT_SPEED, data, sizeof data, SPEED_REPEAT);
   return dccshed_send(DCC_HIPRI, &p);
 }
 
-bool DCCCommandStation::setFunctions(uint16_t addr, DCCAddrType addr_type, uint32_t functions) {
+bool DCCCommandStation::setFunctions(uint16_t addr, DCCAddrType addr_type,
+                                     uint32_t functions) {
   if(setFunctions0to4(addr, addr_type, functions & 0x1F))
     if(setFunctions5to8(addr, addr_type, (functions >> 5) & 0x0F))
       if(setFunctions9to12(addr, addr_type, (functions >> 9) & 0x0F))
-	    if(setFunctions13to20(addr, addr_type, (functions >> 13) & 0xFF))
-		  if(setFunctions21to28(addr, addr_type, (functions >> 21) & 0xFF))
+        if(setFunctions13to20(addr, addr_type, (functions >> 13) & 0xFF))
+		      if(setFunctions21to28(addr, addr_type, (functions >> 21) & 0xFF))
   return false;
 }
 
-bool DCCCommandStation::setFunctions(uint16_t addr, DCCAddrType addr_type, uint8_t F0to4, uint8_t F5to8, uint8_t F9to12, uint8_t F13to20, uint8_t F21to28) {
+bool DCCCommandStation::setFunctions(uint16_t addr, DCCAddrType addr_type,
+                                     uint8_t F0to4, uint8_t F5to8,
+                                     uint8_t F9to12, uint8_t F13to20,
+                                     uint8_t F21to28) {
   if(setFunctions0to4(addr, addr_type, F0to4))
     if(setFunctions5to8(addr, addr_type, F5to8))
       if(setFunctions9to12(addr, addr_type, F9to12))
-	    if(setFunctions13to20(addr, addr_type, F13to20))
-		  return setFunctions21to28(addr, addr_type, F21to28);
+        if(setFunctions13to20(addr, addr_type, F13to20))
+		      return setFunctions21to28(addr, addr_type, F21to28);
   return false;
 }
 
-bool DCCCommandStation::setFunctions0to4(uint16_t addr, DCCAddrType addr_type, uint8_t functions) {
+bool DCCCommandStation::setFunctions0to4(uint16_t addr, DCCAddrType addr_type,
+                                         uint8_t functions) {
   DCCPacket p;
-  uint8_t data[] = {INSTR_FNC_GROUP_ONE};
-  
   /* The headlights (F0, AKA FL) are not controlled by bit 0, but by bit 4. */
-  
-  /* get functions 1,2,3,4 */
-  data[0] |= (functions >> 1) & 0x0F;
-  /* get functions 0 */
-  data[0] |= (functions & 0x01) << 4;
+  uint8_t data[] = {INSTR_FNC_GROUP_ONE |
+                    ((functions >> 1) & 0x0F) | /* get functions 1, 2, 3, 4 */
+                    ((functions & 0x01) << 4)};  /* get function 0 */
   dccpkt_init(&p, addr_type, addr, PKT_FUNCTION_1,
               data, sizeof data, FUNCTION_REPEAT);
   return dccshed_send(DCC_LOPRI, &p);
 }
 
 
-bool DCCCommandStation::setFunctions5to8(uint16_t addr, DCCAddrType addr_type, uint8_t functions) {
+bool DCCCommandStation::setFunctions5to8(uint16_t addr, DCCAddrType addr_type,
+                                         uint8_t functions) {
   DCCPacket p;
-  uint8_t data[] = {INSTR_FNC_GROUP_TWO};
-  
-  data[0] |= functions & 0x0F;
+  uint8_t data[] = {INSTR_FNC_GROUP_TWO | functions & 0x0F};
   dccpkt_init(&p, addr_type, addr, PKT_FUNCTION_2,
               data, sizeof data, FUNCTION_REPEAT);
   return dccshed_send(DCC_LOPRI, &p);
 }
 
-bool DCCCommandStation::setFunctions9to12(uint16_t addr, DCCAddrType addr_type, uint8_t functions) {
+bool DCCCommandStation::setFunctions9to12(uint16_t addr, DCCAddrType addr_type,
+                                          uint8_t functions) {
   DCCPacket p;
-  uint8_t data[] = {INSTR_FNC_GROUP_TWO_EXT};
-  
-  //least significant four functions (F5--F8)
-  data[0] |= functions & 0x0F;
+  uint8_t data[] = {INSTR_FNC_GROUP_TWO_EXT | functions & 0x0F};
+  /* least significant four functions (F5--F8) */
   dccpkt_init(&p, addr_type, addr, PKT_FUNCTION_3,
               data, sizeof data, FUNCTION_REPEAT);
   return dccshed_send(DCC_LOPRI, &p);
 }
 
-bool DCCCommandStation::setFunctions13to20(uint16_t addr, DCCAddrType addr_type, uint8_t functions) {
+bool DCCCommandStation::setFunctions13to20(uint16_t addr, DCCAddrType addr_type,
+                                           uint8_t functions) {
   DCCPacket p;
-  uint8_t data[] = {INSTR_FNC_GROUP_THREE, 0x00};
-
-  data[1] = functions;
+  uint8_t data[] = {INSTR_FNC_GROUP_THREE, functions};
   dccpkt_init(&p, addr_type, addr, PKT_FUNCTION_3,
               data, sizeof data, FUNCTION_REPEAT);
   return dccshed_send(DCC_LOPRI, &p);
 }
 
-bool DCCCommandStation::setFunctions21to28(uint16_t addr, DCCAddrType addr_type, uint8_t functions) {
+bool DCCCommandStation::setFunctions21to28(uint16_t addr, DCCAddrType addr_type,
+                                           uint8_t functions) {
   DCCPacket p;
-  uint8_t data[] = {INSTR_FNC_GROUP_FOUR, 0x00};
-
-  data[1] = functions;
+  uint8_t data[] = {INSTR_FNC_GROUP_FOUR, functions};
   dccpkt_init(&p, addr_type, addr, PKT_FUNCTION_3,
               data, sizeof data, FUNCTION_REPEAT);
   return dccshed_send(DCC_LOPRI, &p);
@@ -183,20 +198,19 @@ bool DCCCommandStation::setFunctions21to28(uint16_t addr, DCCAddrType addr_type,
 //bool DCCCommandStation::setTurnout(uint16_t addr)
 //bool DCCCommandStation::unsetTurnout(uint16_t addr)
 
-bool DCCCommandStation::opsProgramCV(uint16_t addr, DCCAddrType addr_type, uint16_t cv, uint8_t cv_data) {
+bool DCCCommandStation::opsProgramCV(uint16_t addr, DCCAddrType addr_type,
+                                     uint16_t cv, uint8_t cv_data) {
   /* s-9.2.1_2012_07 page 8
    * format of packet:
-   * {preamble} 0 [ AAAAAAAA ] 0 111011VV 0 VVVVVVVV 0 DDDDDDDD 0 EEEEEEEE 1 (write) 
+   * {preamble} 0 [ AAAAAAAA ] 0 111011VV 0 VVVVVVVV 0 DDDDDDDD 0 EEEEEEEE 1 (write)
    */
   DCCPacket p;
-  uint8_t data[] = {INSTR_CV_WRITE, 0x00, 0x00};
-  
   /* Split up 10-bit cv addr among first and second data bytes */
-  data[0] |= ((cv - 1) & 0x3FF) >> 8; /* 2 most significant bits in 1st byte */
-  data[1] = (cv - 1) & 0xFF; /* Other 8 in 2nd byte */
-  data[2] = cv_data;
-  
-  dccpkt_init(&p, addr_type, addr, PKT_OPS_MODE, 
+  uint8_t data[] = {INSTR_CV_WRITE |
+                    (((cv - 1) & 0x3FF) >> 8), /* 2 most significant bits */
+                    ((cv - 1) & 0xFF), /* Other 8 in 2nd byte */
+                    cv_data};
+  dccpkt_init(&p, addr_type, addr, PKT_OPS_MODE,
               data, sizeof data, OPS_MODE_PROGRAMMING_REPEAT);
   return dccshed_send(DCC_LOPRI, &p);
 }
@@ -208,20 +222,19 @@ bool DCCCommandStation::setAddrShort(uint16_t addr, uint16_t new_addr) {
 
 /* broadcast e-stop command */
 bool DCCCommandStation::eStop() {
-    // 111111111111 0 00000000 0 01DC0001 0 EEEEEEEE 1
+    /* 111111111111 0 00000000 0 01DC0001 0 EEEEEEEE 1 */
     DCCPacket p;
-    uint8_t data[] = {0x71}; //01110001
+    uint8_t data[] = {INSTR_ESTOP_ALL};
     dccpkt_init(&p, DCC_ADDR_SHORT, DCC_BROADCAST_ADDR, PKT_E_STOP,
                 data, sizeof data, E_STOP_REPEAT);
     return dccshed_send(DCC_EPRI, &p);
 }
-    
+
 bool DCCCommandStation::eStop(uint16_t addr, DCCAddrType addr_type) {
-    // 111111111111 0	0AAAAAAA 0 01001001 0 EEEEEEEE 1
-    // or
-    // 111111111111 0	0AAAAAAA 0 01000001 0 EEEEEEEE 1
+    /* 111111111111 0	0AAAAAAA 0 01001001 0 EEEEEEEE 1 or
+     * 111111111111 0	0AAAAAAA 0 01000001 0 EEEEEEEE 1 */
     DCCPacket p;
-    uint8_t data[] = {0x41}; //01000001
+    uint8_t data[] = {INSTR_ESTOP};
     dccpkt_init(&p, addr_type, addr, PKT_E_STOP,
                 data, sizeof data, E_STOP_REPEAT);
     return dccshed_send(DCC_EPRI, &p);
@@ -236,8 +249,7 @@ bool DCCCommandStation::setBasicAccessory(uint16_t addr, uint8_t function) {
 
 }
 
-bool DCCCommandStation::unsetBasicAccessory(uint16_t addr, uint8_t function)
-{
+bool DCCCommandStation::unsetBasicAccessory(uint16_t addr, uint8_t function) {
 		// DCCPacket p;
 
 		// uint8_t data[] = { ((function & 0x03) << 1) };

@@ -3,9 +3,9 @@
 #include <Arduino.h>
 
 #define PKT_SIZE 6
+#define DATA_SIZE 3
 #define PKT_MULTIFUNCTION_MASK  0x10
 #define PKT_ACCESSORY_MASK      0x40
-#define DATA_SIZE 3
 #define DCC_BROADCAST_ADDR      0x00
 
 #ifdef __cplusplus
@@ -47,8 +47,9 @@ typedef enum {
 } DCCAddrType;
 
 
-void dccpkt_init(DCCPacket *pkt, DCCAddrType addr_type, uint16_t addr, 
-                 DCCPktType pkt_type, uint8_t *data, uint8_t size, uint8_t repeat);
+void dccpkt_init(DCCPacket *pkt, DCCAddrType addr_type, uint16_t addr,
+                 DCCPktType pkt_type, uint8_t *data, uint8_t size,
+                 uint8_t repeat);
 
 
 #ifdef __cplusplus
